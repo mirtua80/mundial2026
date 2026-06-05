@@ -1,0 +1,871 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Mundial 2026 · Quiniela Familiar</title>
+  <meta name="theme-color" content="#0f172a"/>
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{background:#0f172a;font-family:Georgia,serif;color:#f1f5f9}
+    input,select,button{font-family:Georgia,serif}
+    input[type=number]::-webkit-inner-spin-button{opacity:1}
+    @keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
+    @keyframes fadein{from{opacity:0;transform:translateY(-8px)}to{opacity:1;transform:translateY(0)}}
+    .spin{animation:spin 1s linear infinite;display:inline-block}
+    ::-webkit-scrollbar{width:4px}
+    ::-webkit-scrollbar-track{background:#0f172a}
+    ::-webkit-scrollbar-thumb{background:#334155;border-radius:2px}
+  </style>
+</head>
+<body>
+<div id="root"><div style="display:flex;align-items:center;justify-content:center;height:100vh;flex-direction:column;gap:12px"><span class="spin" style="font-size:52px">⚽</span><span style="color:#94a3b8;font-family:Georgia,serif">Cargando…</span></div></div>
+
+<script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+<script type="module">
+  import { initializeApp }    from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+  import { getDatabase, ref, onValue, set } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+
+  // ── CONFIGURA AQUÍ TU FIREBASE ─────────────────────────────────────────────
+  const firebaseConfig = {
+    apiKey:            "AIzaSyBtM12ju7WQx0JxS6ZyqnVuPXa8XsN5s5c",
+    authDomain:        "mundialfamily2026.firebaseapp.com",
+    databaseURL:       "https://mundialfamily2026-default-rtdb.europe-west1.firebasedatabase.app",
+    projectId:         "mundialfamily2026",
+    storageBucket:     "mundialfamily2026.firebasestorage.app",
+    messagingSenderId: "326404346172",
+    appId:             "1:326404346172:web:cf71962b10d5d945404e39"
+  };
+  // ──────────────────────────────────────────────────────────────────────────
+
+  const app = initializeApp(firebaseConfig);
+  const db  = getDatabase(app);
+  window._fb = { db, ref, onValue, set };
+</script>
+
+<script type="text/babel" data-presets="react">
+const { useState, useEffect, useRef } = React;
+
+// ── PARTIDOS OFICIALES MUNDIAL 2026 (fase de grupos) ─────────────────────
+const MATCHES = [
+  {id:1,  home:"México",         away:"Sudáfrica",      group:"A", date:"11 Jun"},
+  {id:2,  home:"Corea del Sur",  away:"Rep. Checa",     group:"A", date:"12 Jun"},
+  {id:3,  home:"México",         away:"Corea del Sur",  group:"A", date:"15 Jun"},
+  {id:4,  home:"Rep. Checa",     away:"Sudáfrica",      group:"A", date:"15 Jun"},
+  {id:5,  home:"Sudáfrica",      away:"Corea del Sur",  group:"A", date:"19 Jun"},
+  {id:6,  home:"Rep. Checa",     away:"México",         group:"A", date:"19 Jun"},
+  {id:7,  home:"Canadá",         away:"Bosnia-Herz.",   group:"B", date:"11 Jun"},
+  {id:8,  home:"Qatar",          away:"Suiza",          group:"B", date:"12 Jun"},
+  {id:9,  home:"Canadá",         away:"Qatar",          group:"B", date:"16 Jun"},
+  {id:10, home:"Suiza",          away:"Bosnia-Herz.",   group:"B", date:"16 Jun"},
+  {id:11, home:"Bosnia-Herz.",   away:"Qatar",          group:"B", date:"20 Jun"},
+  {id:12, home:"Suiza",          away:"Canadá",         group:"B", date:"20 Jun"},
+  {id:13, home:"Brasil",         away:"Marruecos",      group:"C", date:"12 Jun"},
+  {id:14, home:"Haití",          away:"Escocia",        group:"C", date:"13 Jun"},
+  {id:15, home:"Brasil",         away:"Haití",          group:"C", date:"17 Jun"},
+  {id:16, home:"Escocia",        away:"Marruecos",      group:"C", date:"17 Jun"},
+  {id:17, home:"Marruecos",      away:"Haití",          group:"C", date:"21 Jun"},
+  {id:18, home:"Escocia",        away:"Brasil",         group:"C", date:"21 Jun"},
+  {id:19, home:"EEUU",           away:"Paraguay",       group:"D", date:"13 Jun"},
+  {id:20, home:"Australia",      away:"Turquía",        group:"D", date:"13 Jun"},
+  {id:21, home:"EEUU",           away:"Australia",      group:"D", date:"17 Jun"},
+  {id:22, home:"Turquía",        away:"Paraguay",       group:"D", date:"18 Jun"},
+  {id:23, home:"Paraguay",       away:"Australia",      group:"D", date:"22 Jun"},
+  {id:24, home:"Turquía",        away:"EEUU",           group:"D", date:"22 Jun"},
+  {id:25, home:"Alemania",       away:"Curazao",        group:"E", date:"13 Jun"},
+  {id:26, home:"Costa de Marfil",away:"Ecuador",        group:"E", date:"14 Jun"},
+  {id:27, home:"Alemania",       away:"Costa de Marfil",group:"E", date:"18 Jun"},
+  {id:28, home:"Ecuador",        away:"Curazao",        group:"E", date:"18 Jun"},
+  {id:29, home:"Curazao",        away:"Costa de Marfil",group:"E", date:"22 Jun"},
+  {id:30, home:"Ecuador",        away:"Alemania",       group:"E", date:"22 Jun"},
+  {id:31, home:"Países Bajos",   away:"Japón",          group:"F", date:"14 Jun"},
+  {id:32, home:"Túnez",          away:"Suecia",         group:"F", date:"14 Jun"},
+  {id:33, home:"Países Bajos",   away:"Túnez",          group:"F", date:"18 Jun"},
+  {id:34, home:"Suecia",         away:"Japón",          group:"F", date:"19 Jun"},
+  {id:35, home:"Japón",          away:"Túnez",          group:"F", date:"23 Jun"},
+  {id:36, home:"Suecia",         away:"Países Bajos",   group:"F", date:"23 Jun"},
+  {id:37, home:"Bélgica",        away:"Egipto",         group:"G", date:"15 Jun"},
+  {id:38, home:"Irán",           away:"Nueva Zelanda",  group:"G", date:"15 Jun"},
+  {id:39, home:"Bélgica",        away:"Irán",           group:"G", date:"19 Jun"},
+  {id:40, home:"Nueva Zelanda",  away:"Egipto",         group:"G", date:"19 Jun"},
+  {id:41, home:"Egipto",         away:"Irán",           group:"G", date:"23 Jun"},
+  {id:42, home:"Nueva Zelanda",  away:"Bélgica",        group:"G", date:"23 Jun"},
+  {id:43, home:"España",         away:"Cabo Verde",     group:"H", date:"15 Jun"},
+  {id:44, home:"Arabia Saudí",   away:"Uruguay",        group:"H", date:"16 Jun"},
+  {id:45, home:"España",         away:"Arabia Saudí",   group:"H", date:"20 Jun"},
+  {id:46, home:"Uruguay",        away:"Cabo Verde",     group:"H", date:"20 Jun"},
+  {id:47, home:"Cabo Verde",     away:"Arabia Saudí",   group:"H", date:"24 Jun"},
+  {id:48, home:"Uruguay",        away:"España",         group:"H", date:"24 Jun"},
+  {id:49, home:"Francia",        away:"Senegal",        group:"I", date:"16 Jun"},
+  {id:50, home:"Irak",           away:"Noruega",        group:"I", date:"16 Jun"},
+  {id:51, home:"Francia",        away:"Irak",           group:"I", date:"20 Jun"},
+  {id:52, home:"Noruega",        away:"Senegal",        group:"I", date:"21 Jun"},
+  {id:53, home:"Senegal",        away:"Irak",           group:"I", date:"25 Jun"},
+  {id:54, home:"Noruega",        away:"Francia",        group:"I", date:"25 Jun"},
+  {id:55, home:"Argentina",      away:"Argelia",        group:"J", date:"16 Jun"},
+  {id:56, home:"Austria",        away:"Jordania",       group:"J", date:"17 Jun"},
+  {id:57, home:"Argentina",      away:"Austria",        group:"J", date:"21 Jun"},
+  {id:58, home:"Jordania",       away:"Argelia",        group:"J", date:"21 Jun"},
+  {id:59, home:"Argelia",        away:"Austria",        group:"J", date:"25 Jun"},
+  {id:60, home:"Jordania",       away:"Argentina",      group:"J", date:"25 Jun"},
+  {id:61, home:"Portugal",       away:"Uzbekistán",     group:"K", date:"17 Jun"},
+  {id:62, home:"Colombia",       away:"RD Congo",       group:"K", date:"17 Jun"},
+  {id:63, home:"Portugal",       away:"Colombia",       group:"K", date:"21 Jun"},
+  {id:64, home:"RD Congo",       away:"Uzbekistán",     group:"K", date:"22 Jun"},
+  {id:65, home:"Uzbekistán",     away:"Colombia",       group:"K", date:"26 Jun"},
+  {id:66, home:"RD Congo",       away:"Portugal",       group:"K", date:"26 Jun"},
+  {id:67, home:"Inglaterra",     away:"Croacia",        group:"L", date:"17 Jun"},
+  {id:68, home:"Ghana",          away:"Panamá",         group:"L", date:"18 Jun"},
+  {id:69, home:"Inglaterra",     away:"Ghana",          group:"L", date:"22 Jun"},
+  {id:70, home:"Panamá",         away:"Croacia",        group:"L", date:"22 Jun"},
+  {id:71, home:"Croacia",        away:"Ghana",          group:"L", date:"26 Jun"},
+  {id:72, home:"Panamá",         away:"Inglaterra",     group:"L", date:"26 Jun"},
+];
+
+// ── TOP 30 ────────────────────────────────────────────────────────────────
+const TOP30 = new Set([
+  "Kylian Mbappé","Lamine Yamal","Ousmane Dembélé","Lionel Messi","Harry Kane",
+  "Bruno Fernandes","Raphinha","Erling Haaland","Michael Olise","Désiré Doué",
+  "Rodri","Pedri","Achraf Hakimi","Vitinha","Federico Valverde",
+  "Cristiano Ronaldo","Joao Neves","Kevin De Bruyne","Vinicius Jr.","Julián Álvarez",
+  "Jude Bellingham","Lautaro Martínez","Thibaut Courtois","Declan Rice","Gavi",
+  "Rúben Dias","Bukayo Saka","Jamal Musiala","Phil Foden","Romelu Lukaku"
+]);
+
+// ── GRUPOS OFICIALES MUNDIAL 2026 ─────────────────────────────────────────
+const GROUPS = {
+  A: [{name:"México",flag:"🇲🇽"},{name:"Sudáfrica",flag:"🇿🇦"},{name:"Corea del Sur",flag:"🇰🇷"},{name:"Rep. Checa",flag:"🇨🇿"}],
+  B: [{name:"Canadá",flag:"🇨🇦"},{name:"Bosnia-Herz.",flag:"🇧🇦"},{name:"Qatar",flag:"🇶🇦"},{name:"Suiza",flag:"🇨🇭"}],
+  C: [{name:"Brasil",flag:"🇧🇷"},{name:"Marruecos",flag:"🇲🇦"},{name:"Haití",flag:"🇭🇹"},{name:"Escocia",flag:"🏴󠁧󠁢󠁳󠁣󠁴󠁿"}],
+  D: [{name:"EEUU",flag:"🇺🇸"},{name:"Paraguay",flag:"🇵🇾"},{name:"Australia",flag:"🇦🇺"},{name:"Turquía",flag:"🇹🇷"}],
+  E: [{name:"Alemania",flag:"🇩🇪"},{name:"Curazao",flag:"🇨🇼"},{name:"Costa de Marfil",flag:"🇨🇮"},{name:"Ecuador",flag:"🇪🇨"}],
+  F: [{name:"Países Bajos",flag:"🇳🇱"},{name:"Japón",flag:"🇯🇵"},{name:"Túnez",flag:"🇹🇳"},{name:"Suecia",flag:"🇸🇪"}],
+  G: [{name:"Bélgica",flag:"🇧🇪"},{name:"Egipto",flag:"🇪🇬"},{name:"Irán",flag:"🇮🇷"},{name:"Nueva Zelanda",flag:"🇳🇿"}],
+  H: [{name:"España",flag:"🇪🇸"},{name:"Cabo Verde",flag:"🇨🇻"},{name:"Arabia Saudí",flag:"🇸🇦"},{name:"Uruguay",flag:"🇺🇾"}],
+  I: [{name:"Francia",flag:"🇫🇷"},{name:"Senegal",flag:"🇸🇳"},{name:"Irak",flag:"🇮🇶"},{name:"Noruega",flag:"🇳🇴"}],
+  J: [{name:"Argentina",flag:"🇦🇷"},{name:"Argelia",flag:"🇩🇿"},{name:"Austria",flag:"🇦🇹"},{name:"Jordania",flag:"🇯🇴"}],
+  K: [{name:"Portugal",flag:"🇵🇹"},{name:"Uzbekistán",flag:"🇺🇿"},{name:"Colombia",flag:"🇨🇴"},{name:"RD Congo",flag:"🇨🇩"}],
+  L: [{name:"Inglaterra",flag:"🏴󠁧󠁢󠁥󠁮󠁧󠁿"},{name:"Croacia",flag:"🇭🇷"},{name:"Ghana",flag:"🇬🇭"},{name:"Panamá",flag:"🇵🇦"}],
+};
+
+// Todos los equipos en un array plano
+const ALL_TEAMS = Object.entries(GROUPS).flatMap(([g, teams]) => teams.map(t => ({...t, group:g})));
+
+// ── JUGADORES ─────────────────────────────────────────────────────────────
+const PLAYERS = [
+  // ARGENTINA
+  {name:"Emiliano Martínez",country:"Argentina",flag:"🇦🇷",pos:"POR"},
+  {name:"Cristian Romero",country:"Argentina",flag:"🇦🇷",pos:"DEF"},
+  {name:"Nicolás Otamendi",country:"Argentina",flag:"🇦🇷",pos:"DEF"},
+  {name:"Alexis Mac Allister",country:"Argentina",flag:"🇦🇷",pos:"MED"},
+  {name:"Rodrigo De Paul",country:"Argentina",flag:"🇦🇷",pos:"MED"},
+  {name:"Lionel Messi",country:"Argentina",flag:"🇦🇷",pos:"DEL"},
+  {name:"Julián Álvarez",country:"Argentina",flag:"🇦🇷",pos:"DEL"},
+  {name:"Lautaro Martínez",country:"Argentina",flag:"🇦🇷",pos:"DEL"},
+  // BRASIL
+  {name:"Alisson",country:"Brasil",flag:"🇧🇷",pos:"POR"},
+  {name:"Marquinhos",country:"Brasil",flag:"🇧🇷",pos:"DEF"},
+  {name:"Danilo",country:"Brasil",flag:"🇧🇷",pos:"DEF"},
+  {name:"Casemiro",country:"Brasil",flag:"🇧🇷",pos:"MED"},
+  {name:"Lucas Paquetá",country:"Brasil",flag:"🇧🇷",pos:"MED"},
+  {name:"Vinicius Jr.",country:"Brasil",flag:"🇧🇷",pos:"DEL"},
+  {name:"Raphinha",country:"Brasil",flag:"🇧🇷",pos:"DEL"},
+  {name:"Rodrygo",country:"Brasil",flag:"🇧🇷",pos:"DEL"},
+  {name:"Endrick",country:"Brasil",flag:"🇧🇷",pos:"DEL"},
+  // FRANCIA
+  {name:"Mike Maignan",country:"Francia",flag:"🇫🇷",pos:"POR"},
+  {name:"William Saliba",country:"Francia",flag:"🇫🇷",pos:"DEF"},
+  {name:"Théo Hernández",country:"Francia",flag:"🇫🇷",pos:"DEF"},
+  {name:"Jules Koundé",country:"Francia",flag:"🇫🇷",pos:"DEF"},
+  {name:"Aurélien Tchouaméni",country:"Francia",flag:"🇫🇷",pos:"MED"},
+  {name:"N'Golo Kanté",country:"Francia",flag:"🇫🇷",pos:"MED"},
+  {name:"Kylian Mbappé",country:"Francia",flag:"🇫🇷",pos:"DEL"},
+  {name:"Ousmane Dembélé",country:"Francia",flag:"🇫🇷",pos:"DEL"},
+  {name:"Michael Olise",country:"Francia",flag:"🇫🇷",pos:"DEL"},
+  {name:"Désiré Doué",country:"Francia",flag:"🇫🇷",pos:"DEL"},
+  // ESPAÑA
+  {name:"David Raya",country:"España",flag:"🇪🇸",pos:"POR"},
+  {name:"Dani Carvajal",country:"España",flag:"🇪🇸",pos:"DEF"},
+  {name:"Aymeric Laporte",country:"España",flag:"🇪🇸",pos:"DEF"},
+  {name:"Alejandro Grimaldo",country:"España",flag:"🇪🇸",pos:"DEF"},
+  {name:"Rodri",country:"España",flag:"🇪🇸",pos:"MED"},
+  {name:"Pedri",country:"España",flag:"🇪🇸",pos:"MED"},
+  {name:"Gavi",country:"España",flag:"🇪🇸",pos:"MED"},
+  {name:"Lamine Yamal",country:"España",flag:"🇪🇸",pos:"DEL"},
+  {name:"Álvaro Morata",country:"España",flag:"🇪🇸",pos:"DEL"},
+  // PORTUGAL
+  {name:"Diogo Costa",country:"Portugal",flag:"🇵🇹",pos:"POR"},
+  {name:"Rúben Dias",country:"Portugal",flag:"🇵🇹",pos:"DEF"},
+  {name:"Nuno Mendes",country:"Portugal",flag:"🇵🇹",pos:"DEF"},
+  {name:"Vitinha",country:"Portugal",flag:"🇵🇹",pos:"MED"},
+  {name:"Bruno Fernandes",country:"Portugal",flag:"🇵🇹",pos:"MED"},
+  {name:"Joao Neves",country:"Portugal",flag:"🇵🇹",pos:"MED"},
+  {name:"Bernardo Silva",country:"Portugal",flag:"🇵🇹",pos:"MED"},
+  {name:"Cristiano Ronaldo",country:"Portugal",flag:"🇵🇹",pos:"DEL"},
+  {name:"Rafael Leão",country:"Portugal",flag:"🇵🇹",pos:"DEL"},
+  // INGLATERRA
+  {name:"Jordan Pickford",country:"Inglaterra",flag:"🏴󠁧󠁢󠁥󠁮󠁧󠁿",pos:"POR"},
+  {name:"Trent Alexander-Arnold",country:"Inglaterra",flag:"🏴󠁧󠁢󠁥󠁮󠁧󠁿",pos:"DEF"},
+  {name:"John Stones",country:"Inglaterra",flag:"🏴󠁧󠁢󠁥󠁮󠁧󠁿",pos:"DEF"},
+  {name:"Declan Rice",country:"Inglaterra",flag:"🏴󠁧󠁢󠁥󠁮󠁧󠁿",pos:"MED"},
+  {name:"Jude Bellingham",country:"Inglaterra",flag:"🏴󠁧󠁢󠁥󠁮󠁧󠁿",pos:"MED"},
+  {name:"Phil Foden",country:"Inglaterra",flag:"🏴󠁧󠁢󠁥󠁮󠁧󠁿",pos:"MED"},
+  {name:"Bukayo Saka",country:"Inglaterra",flag:"🏴󠁧󠁢󠁥󠁮󠁧󠁿",pos:"DEL"},
+  {name:"Harry Kane",country:"Inglaterra",flag:"🏴󠁧󠁢󠁥󠁮󠁧󠁿",pos:"DEL"},
+  // ALEMANIA
+  {name:"Manuel Neuer",country:"Alemania",flag:"🇩🇪",pos:"POR"},
+  {name:"Antonio Rüdiger",country:"Alemania",flag:"🇩🇪",pos:"DEF"},
+  {name:"Joshua Kimmich",country:"Alemania",flag:"🇩🇪",pos:"DEF"},
+  {name:"Florian Wirtz",country:"Alemania",flag:"🇩🇪",pos:"MED"},
+  {name:"Jamal Musiala",country:"Alemania",flag:"🇩🇪",pos:"MED"},
+  {name:"Kai Havertz",country:"Alemania",flag:"🇩🇪",pos:"DEL"},
+  {name:"Leroy Sané",country:"Alemania",flag:"🇩🇪",pos:"DEL"},
+  // PAÍSES BAJOS
+  {name:"Bart Verbruggen",country:"P. Bajos",flag:"🇳🇱",pos:"POR"},
+  {name:"Virgil van Dijk",country:"P. Bajos",flag:"🇳🇱",pos:"DEF"},
+  {name:"Matthijs de Ligt",country:"P. Bajos",flag:"🇳🇱",pos:"DEF"},
+  {name:"Ryan Gravenberch",country:"P. Bajos",flag:"🇳🇱",pos:"MED"},
+  {name:"Tijjani Reijnders",country:"P. Bajos",flag:"🇳🇱",pos:"MED"},
+  {name:"Cody Gakpo",country:"P. Bajos",flag:"🇳🇱",pos:"DEL"},
+  {name:"Xavi Simons",country:"P. Bajos",flag:"🇳🇱",pos:"DEL"},
+  // BÉLGICA
+  {name:"Thibaut Courtois",country:"Bélgica",flag:"🇧🇪",pos:"POR"},
+  {name:"Kevin De Bruyne",country:"Bélgica",flag:"🇧🇪",pos:"MED"},
+  {name:"Romelu Lukaku",country:"Bélgica",flag:"🇧🇪",pos:"DEL"},
+  // MARRUECOS
+  {name:"Yassine Bounou",country:"Marruecos",flag:"🇲🇦",pos:"POR"},
+  {name:"Achraf Hakimi",country:"Marruecos",flag:"🇲🇦",pos:"DEF"},
+  {name:"Sofyan Amrabat",country:"Marruecos",flag:"🇲🇦",pos:"MED"},
+  {name:"Hakim Ziyech",country:"Marruecos",flag:"🇲🇦",pos:"DEL"},
+  {name:"Youssef En-Nesyri",country:"Marruecos",flag:"🇲🇦",pos:"DEL"},
+  // URUGUAY
+  {name:"Federico Valverde",country:"Uruguay",flag:"🇺🇾",pos:"MED"},
+  {name:"Darwin Núñez",country:"Uruguay",flag:"🇺🇾",pos:"DEL"},
+  {name:"Luis Suárez",country:"Uruguay",flag:"🇺🇾",pos:"DEL"},
+  // NORUEGA
+  {name:"Erling Haaland",country:"Noruega",flag:"🇳🇴",pos:"DEL"},
+  {name:"Sander Berge",country:"Noruega",flag:"🇳🇴",pos:"MED"},
+  // COLOMBIA
+  {name:"James Rodríguez",country:"Colombia",flag:"🇨🇴",pos:"MED"},
+  {name:"Luis Díaz",country:"Colombia",flag:"🇨🇴",pos:"DEL"},
+  // JAPÓN
+  {name:"Wataru Endo",country:"Japón",flag:"🇯🇵",pos:"MED"},
+  {name:"Takumi Minamino",country:"Japón",flag:"🇯🇵",pos:"DEL"},
+  {name:"Daichi Kamada",country:"Japón",flag:"🇯🇵",pos:"MED"},
+  // CROACIA
+  {name:"Dominik Livaković",country:"Croacia",flag:"🇭🇷",pos:"POR"},
+  {name:"Joško Gvardiol",country:"Croacia",flag:"🇭🇷",pos:"DEF"},
+  {name:"Luka Modrić",country:"Croacia",flag:"🇭🇷",pos:"MED"},
+  {name:"Mateo Kovačić",country:"Croacia",flag:"🇭🇷",pos:"MED"},
+  // SENEGAL
+  {name:"Édouard Mendy",country:"Senegal",flag:"🇸🇳",pos:"POR"},
+  {name:"Kalidou Koulibaly",country:"Senegal",flag:"🇸🇳",pos:"DEF"},
+  {name:"Sadio Mané",country:"Senegal",flag:"🇸🇳",pos:"DEL"},
+  // EEUU
+  {name:"Matt Turner",country:"EEUU",flag:"🇺🇸",pos:"POR"},
+  {name:"Christian Pulisic",country:"EEUU",flag:"🇺🇸",pos:"DEL"},
+  {name:"Weston McKennie",country:"EEUU",flag:"🇺🇸",pos:"MED"},
+  {name:"Tyler Adams",country:"EEUU",flag:"🇺🇸",pos:"MED"},
+  // MÉXICO
+  {name:"Guillermo Ochoa",country:"México",flag:"🇲🇽",pos:"POR"},
+  {name:"Edson Álvarez",country:"México",flag:"🇲🇽",pos:"MED"},
+  {name:"Hirving Lozano",country:"México",flag:"🇲🇽",pos:"DEL"},
+  {name:"Santiago Giménez",country:"México",flag:"🇲🇽",pos:"DEL"},
+  // CANADÁ
+  {name:"Alphonso Davies",country:"Canadá",flag:"🇨🇦",pos:"DEF"},
+  {name:"Jonathan David",country:"Canadá",flag:"🇨🇦",pos:"DEL"},
+  {name:"Tajon Buchanan",country:"Canadá",flag:"🇨🇦",pos:"DEL"},
+  // AUSTRIA
+  {name:"Patrick Pentz",country:"Austria",flag:"🇦🇹",pos:"POR"},
+  {name:"Marcel Sabitzer",country:"Austria",flag:"🇦🇹",pos:"MED"},
+  {name:"Marko Arnautovic",country:"Austria",flag:"🇦🇹",pos:"DEL"},
+  // SUIZA
+  {name:"Yann Sommer",country:"Suiza",flag:"🇨🇭",pos:"POR"},
+  {name:"Granit Xhaka",country:"Suiza",flag:"🇨🇭",pos:"MED"},
+  {name:"Xherdan Shaqiri",country:"Suiza",flag:"🇨🇭",pos:"DEL"},
+  // ECUADOR
+  {name:"Enner Valencia",country:"Ecuador",flag:"🇪🇨",pos:"DEL"},
+  {name:"Moises Caicedo",country:"Ecuador",flag:"🇪🇨",pos:"MED"},
+  // EGIPTO
+  {name:"Mohamed Salah",country:"Egipto",flag:"🇪🇬",pos:"DEL"},
+  {name:"Mohamed El-Shenawy",country:"Egipto",flag:"🇪🇬",pos:"POR"},
+  // GHANA
+  {name:"Thomas Partey",country:"Ghana",flag:"🇬🇭",pos:"MED"},
+  {name:"Jordan Ayew",country:"Ghana",flag:"🇬🇭",pos:"DEL"},
+  // SENEGAL
+  {name:"Ismaïla Sarr",country:"Senegal",flag:"🇸🇳",pos:"DEL"},
+  // COREA DEL SUR
+  {name:"Son Heung-min",country:"Corea del Sur",flag:"🇰🇷",pos:"DEL"},
+  {name:"Kim Min-jae",country:"Corea del Sur",flag:"🇰🇷",pos:"DEF"},
+  // PARAGUAY
+  {name:"Miguel Almirón",country:"Paraguay",flag:"🇵🇾",pos:"MED"},
+  // TURQUÍA
+  {name:"Hakan Çalhanoğlu",country:"Turquía",flag:"🇹🇷",pos:"MED"},
+  {name:"Arda Güler",country:"Turquía",flag:"🇹🇷",pos:"MED"},
+  // ARABIA SAUDÍ
+  {name:"Salem Al-Dawsari",country:"Arabia Saudí",flag:"🇸🇦",pos:"DEL"},
+];
+
+// ── PUNTUACIÓN ────────────────────────────────────────────────────────────
+function calcPoints(pred, real) {
+  if (!pred||!real) return {pts:0,bonus:0,total:0,error:null};
+  const ph=parseInt(pred.home),pa=parseInt(pred.away),rh=parseInt(real.home),ra=parseInt(real.away);
+  if ([ph,pa,rh,ra].some(isNaN)) return {pts:0,bonus:0,total:0,error:null};
+  const error=Math.abs(ph-rh)+Math.abs(pa-ra);
+  const pts=error===0?10:error===1?6:error===2?3:error===3?1:0;
+  const bonus=(ph>pa?"H":ph<pa?"A":"D")===(rh>ra?"H":rh<ra?"A":"D")?2:0;
+  return {pts,bonus,total:pts+bonus,error};
+}
+function mkBadge(r) {
+  if (r.error===null) return null;
+  if (r.error===0) return {label:`🎯 ${r.total} pts`,color:"#16a34a"};
+  if (r.total>0)   return {label:`${r.pts}+${r.bonus} pts`,color:r.pts>=6?"#d97706":"#64748b"};
+  return {label:r.bonus>0?`+${r.bonus} pts`:"❌ 0",color:r.bonus>0?"#7c3aed":"#475569"};
+}
+
+const POS_COLOR={POR:"#f59e0b",DEF:"#3b82f6",MED:"#22c55e",DEL:"#ef4444"};
+const POS_LABEL={POR:"Portero",DEF:"Defensa",MED:"Centrocampista",DEL:"Delantero"};
+const TABS=["🏠","⚽","🌟","🏆","📖","⚙️"];
+const TLBL=["Inicio","Partidos","Dream XI","Ranking","Reglas","Admin"];
+
+// ── FIREBASE HOOK ─────────────────────────────────────────────────────────
+function useFB(path, def) {
+  const [data,setData]=useState(def);
+  useEffect(()=>{
+    if (!window._fb) return;
+    const {db,ref,onValue}=window._fb;
+    const unsub=onValue(ref(db,path),snap=>{
+      const v=snap.val(); setData(v!==null?v:def);
+    });
+    return ()=>unsub();
+  },[path]);
+  const save=async(d)=>{ const {db,ref,set}=window._fb; await set(ref(db,path),d); };
+  return [data,save];
+}
+
+// ── APP ───────────────────────────────────────────────────────────────────
+function App() {
+  const [tab,setTab]       = useState(0);
+  const [user,setUser]     = useState(()=>localStorage.getItem("mundial26_user")||null);
+  const [uname,setUname]   = useState("");
+  const [toast,setToast]   = useState(null);
+
+  const [players,   savePlayers]  = useFB("players",{});
+  const [preds,     savePreds]    = useFB("predictions",{});
+  const [results,   saveResults]  = useFB("results",{});
+  const [dreamXI,   saveDreamXI]  = useFB("dreamXI",{});
+  const [adminMode, setAdmin]     = useState(false);
+  const [adminPass, setPass]      = useState("");
+
+  const toast_=(msg,type="ok")=>{ setToast({msg,type}); setTimeout(()=>setToast(null),2800); };
+
+  const join = async () => {
+    if (!uname.trim()) return;
+    const n=uname.trim();
+    await savePlayers({...players,[n]:{joined:new Date().toISOString()}});
+    localStorage.setItem("mundial26_user",n);
+    setUser(n); toast_(`¡Bienvenido/a ${n}! ⚽`);
+  };
+
+  const leaderboard = Object.keys(players).map(name=>{
+    let matchPts=0;
+    Object.values(results).forEach((real,i)=>{
+      const id=Object.keys(results)[i];
+      matchPts+=calcPoints(preds[name]?.[id],real).total;
+    });
+    const xi=dreamXI[name]||[];
+    const topCount=xi.filter(p=>TOP30.has(p.name)).length;
+    const dreamBonus=topCount*Object.keys(results).length;
+    return {name,matchPts,dreamBonus,total:matchPts+dreamBonus};
+  }).sort((a,b)=>b.total-a.total);
+
+  if (!user) return <Login name={uname} setName={setUname} onJoin={join} existing={Object.keys(players)}/>;
+
+  return (
+    <div style={{minHeight:"100vh",background:"#0f172a",color:"#f1f5f9",fontFamily:"Georgia,serif"}}>
+      <style>{`@keyframes spin{from{transform:rotate(0)}to{transform:rotate(360deg)}}`}</style>
+      {toast&&<div style={{position:"fixed",top:14,left:"50%",transform:"translateX(-50%)",zIndex:9999,
+        padding:"9px 20px",borderRadius:8,color:"#fff",fontWeight:"bold",fontSize:14,
+        boxShadow:"0 4px 20px rgba(0,0,0,0.4)",whiteSpace:"nowrap",animation:"fadein .2s ease",
+        background:toast.type==="ok"?"#16a34a":"#dc2626"}}>{toast.msg}</div>}
+
+      <header style={{background:"linear-gradient(135deg,#1e3a5f,#0f172a)",padding:"13px 16px",
+        display:"flex",justifyContent:"space-between",alignItems:"center",borderBottom:"2px solid #f59e0b"}}>
+        <div style={{fontSize:17,fontWeight:"bold",color:"#f59e0b"}}>⚽ Mundial 2026</div>
+        <div style={{display:"flex",alignItems:"center",gap:10}}>
+          <div style={{fontSize:12,color:"#94a3b8",cursor:"pointer"}}
+            onClick={()=>{localStorage.removeItem("mundial26_user");setUser(null);}}>● {user} ✕</div>
+        </div>
+      </header>
+
+      <nav style={{display:"flex",background:"#1e293b",borderBottom:"1px solid #334155"}}>
+        {TABS.map((icon,i)=>(
+          <button key={i} onClick={()=>setTab(i)} style={{flex:1,display:"flex",flexDirection:"column",
+            alignItems:"center",justifyContent:"center",padding:"7px 2px",background:tab===i?"rgba(245,158,11,0.07)":"transparent",
+            border:"none",color:tab===i?"#f59e0b":"#64748b",cursor:"pointer",
+            borderBottom:tab===i?"2px solid #f59e0b":"2px solid transparent",gap:1}}>
+            <span style={{fontSize:17}}>{icon}</span><span style={{fontSize:9}}>{TLBL[i]}</span>
+          </button>
+        ))}
+      </nav>
+
+      <main style={{padding:"14px 13px 80px",maxWidth:620,margin:"0 auto"}}>
+        {tab===0&&<HomeTab leaderboard={leaderboard} user={user} results={results} preds={preds} onGoRules={()=>setTab(4)}/>}
+        {tab===1&&<MatchesTab user={user} preds={preds} results={results}
+          onSave={(id,h,a)=>{ savePreds({...preds,[user]:{...(preds[user]||{}),[id]:{home:h,away:a}}}); toast_("Predicción guardada ✅"); }}/>}
+        {tab===2&&<DreamXITab user={user} dreamXI={dreamXI} onSave={xi=>{ saveDreamXI({...dreamXI,[user]:xi}); toast_("Dream XI guardado 🌟"); }}/>}
+        {tab===3&&<RankingTab leaderboard={leaderboard} preds={preds} results={results}/>}
+        {tab===4&&<RulesTab/>}
+        {tab===5&&<AdminTab results={results} adminMode={adminMode} adminPass={adminPass} setAdminPass={setPass}
+          onUnlock={()=>adminPass==="mundial2026"?setAdmin(true):toast_("Contraseña incorrecta ❌","err")}
+          onSave={(id,h,a)=>{ saveResults({...results,[id]:{home:h,away:a}}); toast_("Resultado guardado ✅"); }}/>}
+      </main>
+    </div>
+  );
+}
+
+// ── LOGIN ─────────────────────────────────────────────────────────────────
+function Login({name,setName,onJoin,existing}) {
+  return (
+    <div style={{display:"flex",alignItems:"center",justifyContent:"center",minHeight:"100vh",
+      background:"radial-gradient(ellipse at 50% 0%,#1e3a5f,#0f172a)",padding:20}}>
+      <div style={{background:"#1e293b",borderRadius:20,padding:"32px 24px",width:"100%",maxWidth:360,
+        border:"1px solid rgba(245,158,11,0.27)",boxShadow:"0 20px 60px rgba(0,0,0,0.5)",textAlign:"center"}}>
+        <div style={{fontSize:52}}>⚽</div>
+        <h1 style={{fontSize:36,color:"#f59e0b",margin:"8px 0 4px",lineHeight:1.1}}>Mundial<br/>2026</h1>
+        <p style={{color:"#94a3b8",fontStyle:"italic",marginBottom:24,fontSize:14}}>Quiniela Familiar</p>
+        <input style={S.inp} placeholder="Tu nombre..." value={name}
+          onChange={e=>setName(e.target.value)} onKeyDown={e=>e.key==="Enter"&&onJoin()}/>
+        <button style={S.btn} onClick={onJoin}>Entrar →</button>
+        {existing.length>0&&<div style={{marginTop:18}}>
+          <div style={{fontSize:12,color:"#64748b",marginBottom:8}}>Ya jugando:</div>
+          <div style={{display:"flex",flexWrap:"wrap",gap:6,justifyContent:"center"}}>
+            {existing.map(p=><span key={p} onClick={()=>setName(p)} style={{background:"#0f172a",border:"1px solid #334155",
+              borderRadius:20,padding:"3px 10px",fontSize:12,color:"#94a3b8",cursor:"pointer"}}>{p}</span>)}
+          </div>
+        </div>}
+      </div>
+    </div>
+  );
+}
+
+// ── HOME ──────────────────────────────────────────────────────────────────
+function HomeTab({leaderboard,user,results,preds,onGoRules}) {
+  const rank=leaderboard.findIndex(l=>l.name===user)+1;
+  const my=leaderboard.find(l=>l.name===user)||{total:0,matchPts:0,dreamBonus:0};
+  const upcoming = MATCHES.filter(m=>!results[m.id]).slice(0,3);
+  return (
+    <div>
+      <div style={{background:"linear-gradient(135deg,#1e3a5f,#0f3460)",borderRadius:16,padding:"22px 16px",
+        textAlign:"center",marginBottom:12,border:"1px solid rgba(245,158,11,0.27)"}}>
+        <div style={{fontSize:38}}>🏆</div>
+        <div style={{fontSize:20,fontWeight:"bold",color:"#f1f5f9",marginTop:6}}>{user}</div>
+        <div style={{fontSize:24,color:"#f59e0b",fontWeight:"bold",marginTop:2}}>{rank>0?`#${rank}`:"–"} · {my.total} pts</div>
+        <div style={{fontSize:12,color:"#94a3b8",marginTop:2}}>{my.matchPts} pts partidos · {my.dreamBonus} pts Dream XI</div>
+      </div>
+
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8,marginBottom:12}}>
+        {[["⚽",`${Object.keys(results).length}/${MATCHES.length}`,"Jugados"],
+          ["🎯",Object.keys(preds[user]||{}).length,"Mis pred."],
+          ["👥",leaderboard.length,"Jugadores"]].map(([ic,v,l])=>(
+          <div key={l} style={{background:"#1e293b",borderRadius:10,padding:"10px 4px",textAlign:"center",border:"1px solid #334155"}}>
+            <div style={{fontSize:20}}>{ic}</div>
+            <div style={{fontSize:18,fontWeight:"bold",color:"#f59e0b"}}>{v}</div>
+            <div style={{fontSize:11,color:"#64748b"}}>{l}</div>
+          </div>
+        ))}
+      </div>
+
+      <div style={{fontWeight:"bold",fontSize:15,marginBottom:8}}>🥇 Top 3</div>
+      {leaderboard.slice(0,3).map((l,i)=>(
+        <div key={l.name} style={{display:"flex",alignItems:"center",gap:10,padding:"10px 14px",borderRadius:10,
+          marginBottom:6,background:i===0?"#fef3c7":i===1?"#f1f5f9":"#f8fafc"}}>
+          <span style={{fontSize:22}}>{"🥇🥈🥉"[i]}</span>
+          <span style={{flex:1,fontWeight:"bold",color:"#1e293b",fontSize:15}}>{l.name}</span>
+          <span style={{fontWeight:"bold",color:"#1e293b"}}>{l.total} pts</span>
+        </div>
+      ))}
+
+      {upcoming.length>0&&<div style={{marginTop:12}}>
+        <div style={{fontWeight:"bold",fontSize:14,marginBottom:8}}>📅 Próximos partidos</div>
+        {upcoming.map(m=>(
+          <div key={m.id} style={{background:"#1e293b",borderRadius:10,padding:"10px 14px",marginBottom:6,
+            border:"1px solid #334155",display:"flex",alignItems:"center",gap:8}}>
+            <span style={{flex:1,fontSize:13}}>{m.home}</span>
+            <span style={{fontSize:12,color:"#64748b",textAlign:"center",minWidth:60}}>{m.date}</span>
+            <span style={{flex:1,fontSize:13,textAlign:"right"}}>{m.away}</span>
+          </div>
+        ))}
+      </div>}
+
+      <div style={{background:"#1e293b",borderRadius:12,padding:14,marginTop:12,border:"1px solid #334155"}}>
+        <div style={{fontWeight:"bold",marginBottom:10,display:"flex",justifyContent:"space-between"}}>
+          <span>📋 Puntuación</span>
+          <span onClick={onGoRules} style={{fontSize:11,color:"#f59e0b",cursor:"pointer",textDecoration:"underline"}}>Ver reglas →</span>
+        </div>
+        {[["🎯","Exacto","10 pts"],["🔥","Error 1 gol","6 pts"],["👍","Error 2 goles","3 pts"],
+          ["🤏","Error 3 goles","1 pt"],["💥","Error 4+","0 pts"],["✅","Bonus ganador/empate","+2 pts"],
+          ["🌟","TOP30 en Dream XI","+1 pt/jornada"]].map(([ic,t,p])=>(
+          <div key={t} style={{display:"flex",alignItems:"center",gap:8,padding:"5px 0",fontSize:12,
+            color:"#94a3b8",borderBottom:"1px solid #0f172a"}}>
+            <span style={{width:18}}>{ic}</span><span style={{flex:1}}>{t}</span>
+            <b style={{color:"#f59e0b"}}>{p}</b>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ── MATCHES ───────────────────────────────────────────────────────────────
+function MatchesTab({user,preds,results,onSave}) {
+  const [inp,setInp]=useState({});
+  const [groupFilter,setGF]=useState("ALL");
+  const setV=(id,side,val)=>setInp(p=>({...p,[id]:{...(p[id]||{}),[side]:val}}));
+  const filtered = groupFilter==="ALL" ? MATCHES : MATCHES.filter(m=>m.group===groupFilter);
+  const groups = ["ALL","A","B","C","D","E","F","G","H","I","J","K","L"];
+  return (
+    <div>
+      <div style={{fontWeight:"bold",fontSize:15,marginBottom:12}}>⚽ Partidos</div>
+      <div style={{display:"flex",gap:6,marginBottom:10,flexWrap:"wrap"}}>
+        {groups.map(g=>(
+          <button key={g} onClick={()=>setGF(g)} style={{padding:"4px 10px",borderRadius:20,cursor:"pointer",border:"none",
+            background:groupFilter===g?"#f59e0b":"#1e293b",color:groupFilter===g?"#0f172a":"#94a3b8",
+            fontSize:12,fontWeight:groupFilter===g?"bold":"normal"}}>
+            {g==="ALL"?"Todos":`Gr. ${g}`}
+          </button>
+        ))}
+      </div>
+      {filtered.map(m=>{
+        const pred=preds[user]?.[m.id], real=results[m.id];
+        const r=calcPoints(pred,real), b=mkBadge(r), done=!!real;
+        const hv=inp[m.id]?.home??pred?.home??"", av=inp[m.id]?.away??pred?.away??"";
+        return (
+          <div key={m.id} style={{background:"#1e293b",borderRadius:12,padding:12,marginBottom:8,border:"1px solid #334155"}}>
+            <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:8}}>
+              <span style={{background:"#f59e0b",color:"#0f172a",fontSize:11,fontWeight:"bold",padding:"2px 7px",borderRadius:5}}>Gr. {m.group}</span>
+              <span style={{fontSize:12,color:"#64748b"}}>{m.date}</span>
+              {b&&<span style={{marginLeft:"auto",fontSize:12,padding:"2px 8px",borderRadius:6,fontWeight:"bold",color:"#fff",background:b.color}}>{b.label}</span>}
+            </div>
+            <div style={{display:"flex",alignItems:"center",gap:6}}>
+              <span style={{flex:1,fontSize:13,fontWeight:500}}>{m.home}</span>
+              <div style={{display:"flex",alignItems:"center",gap:4}}>
+                {done
+                  ?<div style={{background:"#0f172a",borderRadius:8,padding:"5px 14px",fontSize:17,fontWeight:"bold",color:"#22c55e"}}>{real.home}–{real.away}</div>
+                  :<><input style={S.scoreBox} type="number" min="0" max="20" value={hv} onChange={e=>setV(m.id,"home",e.target.value)}/>
+                    <span style={{color:"#f59e0b",fontWeight:"bold",fontSize:16}}>:</span>
+                    <input style={S.scoreBox} type="number" min="0" max="20" value={av} onChange={e=>setV(m.id,"away",e.target.value)}/></>
+                }
+              </div>
+              <span style={{flex:1,fontSize:13,fontWeight:500,textAlign:"right"}}>{m.away}</span>
+            </div>
+            {done&&pred&&(
+              <div style={{marginTop:6,background:"#0f172a",borderRadius:8,padding:"6px 10px",fontSize:12}}>
+                <span style={{color:"#64748b"}}>Pred: </span><b style={{color:"#f1f5f9"}}>{pred.home}–{pred.away}</b>
+                <span style={{color:"#64748b",marginLeft:8}}>Error: </span><span style={{color:"#f1f5f9"}}>{r.error} gol{r.error!==1?"es":""}</span>
+                <span style={{color:"#64748b",marginLeft:8}}>Base: </span><b style={{color:"#f59e0b"}}>{r.pts}</b>
+                <span style={{color:"#64748b",marginLeft:6}}>+Bonus: </span><b style={{color:"#7c3aed"}}>{r.bonus}</b>
+              </div>
+            )}
+            {!done&&<button style={S.saveBtn} onClick={()=>onSave(m.id,hv,av)}>Guardar predicción</button>}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+// ── DREAM XI ──────────────────────────────────────────────────────────────
+function DreamXITab({user,dreamXI,onSave}) {
+  const [selected,setSelected]=useState(dreamXI[user]||[]);
+  const [search,setSearch]=useState("");
+  const [posF,setPosF]=useState("ALL");
+  const [ctryF,setCtryF]=useState("ALL");
+  useEffect(()=>setSelected(dreamXI[user]||[]),[user,JSON.stringify(dreamXI[user])]);
+  const topCount=selected.filter(p=>TOP30.has(p.name)).length;
+  const toggle=(p)=>{
+    if(selected.find(s=>s.name===p.name)){setSelected(selected.filter(s=>s.name!==p.name));return;}
+    if(selected.length>=11||(TOP30.has(p.name)&&topCount>=3))return;
+    setSelected([...selected,p]);
+  };
+  const countries=["ALL",...new Set(PLAYERS.map(p=>p.country))].sort((a,b)=>a==="ALL"?-1:a.localeCompare(b));
+  const filtered=PLAYERS.filter(p=>{
+    const ms=search===""||p.name.toLowerCase().includes(search.toLowerCase())||p.country.toLowerCase().includes(search.toLowerCase());
+    return ms&&(posF==="ALL"||p.pos===posF)&&(ctryF==="ALL"||p.country===ctryF);
+  });
+  const posLayout={POR:[0],DEF:[1,2,3,4],MED:[5,6,7],DEL:[8,9,10]};
+  const slotLbl=["POR","LT","DFC","DFC","RT","MCD","MC","MC","EXT","DC","EXT"];
+  return (
+    <div>
+      <div style={{background:"linear-gradient(135deg,#14532d,#166534)",borderRadius:12,padding:"12px 16px",
+        marginBottom:12,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+        <div>
+          <div style={{fontWeight:"bold",fontSize:15,color:"#86efac"}}>⭐ Dream XI — {selected.length}/11</div>
+          <div style={{fontSize:12,color:"#4ade80",marginTop:2}}>TOP30 usados: {topCount}/3</div>
+        </div>
+        {selected.length===11&&<button style={{...S.btn,width:"auto",padding:"8px 14px",fontSize:13}} onClick={()=>onSave(selected)}>Guardar 🌟</button>}
+      </div>
+      {selected.length>0&&(
+        <div style={{background:"#14532d",borderRadius:12,padding:12,marginBottom:12,border:"1px solid #166534"}}>
+          <div style={{fontSize:12,color:"#86efac",textAlign:"center",marginBottom:8}}>Toca para quitar</div>
+          {Object.entries(posLayout).map(([pos,idxs])=>(
+            <div key={pos} style={{display:"flex",justifyContent:"center",gap:8,marginBottom:8}}>
+              {idxs.map(i=>{
+                const p=selected[i];
+                return p?(
+                  <div key={i} onClick={()=>toggle(p)} style={{background:"rgba(255,255,255,0.13)",borderRadius:8,
+                    padding:"6px 8px",textAlign:"center",minWidth:58,cursor:"pointer",
+                    border:TOP30.has(p.name)?"1px solid #fbbf24":"1px solid transparent"}}>
+                    <div style={{fontSize:18}}>{p.flag}</div>
+                    <div style={{fontSize:10,color:"#fff",fontWeight:"bold",maxWidth:56,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{p.name.split(" ").slice(-1)[0]}</div>
+                    <div style={{fontSize:9,color:"#86efac"}}>{slotLbl[i]}</div>
+                    {TOP30.has(p.name)&&<div style={{fontSize:9,color:"#fbbf24"}}>★</div>}
+                  </div>
+                ):(
+                  <div key={i} style={{background:"rgba(255,255,255,0.04)",borderRadius:8,padding:"6px 8px",textAlign:"center",minWidth:58,border:"1px dashed #166534"}}>
+                    <div style={{fontSize:18,color:"rgba(74,222,128,0.2)"}}>?</div>
+                    <div style={{fontSize:9,color:"#4ade80"}}>{slotLbl[i]}</div>
+                  </div>
+                );
+              })}
+            </div>
+          ))}
+        </div>
+      )}
+      {topCount>=3&&<div style={{background:"#7c2d12",border:"1px solid #ea580c",borderRadius:8,padding:"8px 12px",fontSize:12,color:"#fed7aa",marginBottom:10}}>⚠️ Límite de 3 estrellas TOP30 alcanzado.</div>}
+      {selected.length>=11&&<div style={{background:"#1e3a5f",border:"1px solid #3b82f6",borderRadius:8,padding:"8px 12px",fontSize:12,color:"#93c5fd",marginBottom:10}}>✅ XI completo. Pulsa «Guardar».</div>}
+      <input style={{...S.inp,marginBottom:8,padding:"8px 12px",fontSize:13}} placeholder="🔍 Buscar jugador o país..." value={search} onChange={e=>setSearch(e.target.value)}/>
+      <div style={{display:"flex",gap:6,marginBottom:8,flexWrap:"wrap"}}>
+        {["ALL","POR","DEF","MED","DEL"].map(p=>(
+          <button key={p} onClick={()=>setPosF(p)} style={{padding:"5px 10px",borderRadius:20,cursor:"pointer",
+            border:`1px solid ${posF===p?"#f59e0b":"#334155"}`,
+            background:posF===p?"rgba(245,158,11,0.13)":"#1e293b",
+            color:posF===p?"#f59e0b":"#94a3b8",fontSize:12}}>
+            {p==="ALL"?"Todos":POS_LABEL[p]}
+          </button>
+        ))}
+      </div>
+      <select style={{...S.inp,marginBottom:10,padding:"8px 12px",fontSize:13}} value={ctryF} onChange={e=>setCtryF(e.target.value)}>
+        {countries.map(c=><option key={c} value={c}>{c==="ALL"?"🌍 Todos los países":c}</option>)}
+      </select>
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:7}}>
+        {filtered.map(p=>{
+          const sel=!!selected.find(s=>s.name===p.name);
+          const isStar=TOP30.has(p.name);
+          const blocked=!sel&&(selected.length>=11||(isStar&&topCount>=3));
+          return (
+            <button key={p.name} onClick={()=>!blocked&&toggle(p)} style={{display:"flex",alignItems:"center",gap:8,
+              padding:"9px 10px",textAlign:"left",
+              background:sel?"#0f3460":blocked?"#111827":"#1e293b",
+              border:`1px solid ${sel?"#f59e0b":isStar?"#a855f7":"#334155"}`,
+              borderRadius:10,cursor:blocked?"not-allowed":"pointer",opacity:blocked?0.4:1}}>
+              <span style={{fontSize:20}}>{p.flag}</span>
+              <div style={{flex:1,minWidth:0}}>
+                <div style={{fontSize:12,color:sel?"#fbbf24":isStar?"#d8b4fe":"#f1f5f9",
+                  fontWeight:isStar?"bold":"normal",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>
+                  {p.name}{isStar?" ★":""}
+                </div>
+                <div style={{fontSize:10,color:"#64748b"}}>{p.country}</div>
+              </div>
+              <span style={{fontSize:10,fontWeight:"bold",padding:"2px 5px",borderRadius:4,
+                background:POS_COLOR[p.pos]+"33",color:POS_COLOR[p.pos]}}>{p.pos}</span>
+              {sel&&<span style={{color:"#22c55e",fontSize:14}}>✓</span>}
+            </button>
+          );
+        })}
+      </div>
+      {Object.entries(dreamXI).filter(([n])=>n!==user).length>0&&(
+        <div style={{marginTop:16}}>
+          <div style={{fontWeight:"bold",fontSize:14,marginBottom:8}}>Los XI de los demás 👀</div>
+          {Object.entries(dreamXI).filter(([n])=>n!==user).map(([name,xi])=>(
+            <div key={name} style={{background:"#1e293b",borderRadius:8,padding:"10px 12px",marginBottom:6,border:"1px solid #334155"}}>
+              <div style={{fontWeight:"bold",fontSize:13,marginBottom:6}}>{name}</div>
+              <div style={{display:"flex",flexWrap:"wrap",gap:4}}>
+                {(xi||[]).map(p=>(
+                  <span key={p.name||p} style={{fontSize:11,background:"#0f172a",borderRadius:12,padding:"2px 8px",
+                    color:TOP30.has(p.name||p)?"#fbbf24":"#94a3b8",
+                    border:`1px solid ${TOP30.has(p.name||p)?"rgba(245,158,11,0.27)":"#334155"}`}}>
+                    {p.flag||""} {p.name||p}
+                  </span>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── RANKING ───────────────────────────────────────────────────────────────
+function RankingTab({leaderboard,preds,results}) {
+  const [exp,setExp]=useState(null);
+  return (
+    <div>
+      <div style={{fontWeight:"bold",fontSize:15,marginBottom:12}}>🏆 Clasificación General</div>
+      {leaderboard.length===0&&<p style={{textAlign:"center",color:"#64748b",marginTop:40}}>Aún no hay participantes</p>}
+      {leaderboard.map((l,i)=>(
+        <div key={l.name}>
+          <div onClick={()=>setExp(exp===l.name?null:l.name)} style={{display:"flex",alignItems:"center",gap:10,
+            padding:"12px 14px",background:"#1e293b",cursor:"pointer",
+            borderRadius:exp===l.name?"10px 10px 0 0":10,marginBottom:exp===l.name?0:7,
+            borderLeft:`4px solid ${i===0?"#f59e0b":i===1?"#94a3b8":i===2?"#b45309":"#334155"}`}}>
+            <div style={{fontSize:22,width:28}}>{"🥇🥈🥉"[i]||i+1}</div>
+            <div style={{flex:1}}>
+              <div style={{fontWeight:"bold",fontSize:15}}>{l.name}</div>
+              <div style={{fontSize:11,color:"#64748b"}}>{l.matchPts} pts partidos · {l.dreamBonus} pts Dream XI</div>
+            </div>
+            <div style={{fontSize:22,fontWeight:"bold",color:"#f59e0b"}}>{l.total}<span style={{fontSize:11}}> pts</span></div>
+            <span style={{color:"#475569",fontSize:12}}>{exp===l.name?"▲":"▼"}</span>
+          </div>
+          {exp===l.name&&(
+            <div style={{background:"#0f1e33",borderRadius:"0 0 10px 10px",padding:"10px 14px",marginBottom:7,
+              border:"1px solid #1e3a5f",borderTop:"none"}}>
+              <div style={{fontSize:12,color:"#64748b",marginBottom:6}}>Desglose por partido</div>
+              {MATCHES.filter(m=>results[m.id]).map(m=>{
+                const real=results[m.id], pred=preds[l.name]?.[m.id], r=calcPoints(pred,real);
+                return (
+                  <div key={m.id} style={{display:"flex",alignItems:"center",gap:6,padding:"4px 0",borderBottom:"1px solid #1e293b",fontSize:12}}>
+                    <span style={{color:"#94a3b8",flex:1,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{m.home} vs {m.away}</span>
+                    <span style={{color:"#64748b"}}>{real.home}–{real.away}</span>
+                    <span style={{color:"#475569",fontSize:11}}>{pred?`${pred.home}–${pred.away}`:"–"}</span>
+                    <span style={{fontWeight:"bold",minWidth:38,textAlign:"right",
+                      color:r.total>=10?"#22c55e":r.total>=6?"#f59e0b":r.total>0?"#94a3b8":"#475569"}}>
+                      {pred?`+${r.total}`:"–"}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// ── REGLAS ────────────────────────────────────────────────────────────────
+function RulesTab() {
+  const S2={fontSize:13,color:"#94a3b8",lineHeight:1.65,margin:0};
+  const Sec=({icon,title,color,children})=>(
+    <div style={{background:"#1e293b",borderRadius:14,padding:14,marginBottom:12,border:`1px solid ${color}33`}}>
+      <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:10,paddingBottom:8,borderBottom:`1px solid ${color}33`}}>
+        <span style={{fontSize:22}}>{icon}</span><h3 style={{margin:0,fontSize:16,color}}>{title}</h3>
+      </div>
+      {children}
+    </div>
+  );
+  return (
+    <div>
+      <div style={{background:"linear-gradient(135deg,#1e3a5f,#0f3460)",borderRadius:16,padding:"20px 16px",
+        textAlign:"center",marginBottom:16,border:"1px solid rgba(245,158,11,0.27)"}}>
+        <div style={{fontSize:40}}>📖</div>
+        <h2 style={{fontSize:22,color:"#f59e0b",margin:"8px 0 4px"}}>Reglas del Juego</h2>
+        <p style={{fontSize:13,color:"#94a3b8",margin:0}}>Mundial 2026 · Quiniela Familiar</p>
+      </div>
+      <Sec icon="🎯" title="Objetivo" color="#f59e0b">
+        <p style={S2}>Acumular el mayor número de puntos prediciendo resultados y eligiendo tu Dream XI. Gana quien más puntos tenga al final del Mundial.</p>
+      </Sec>
+      <Sec icon="⚽" title="Predicciones de Partidos" color="#3b82f6">
+        <p style={S2}>Introduce tu predicción antes del pitido inicial. <b style={{color:"#f1f5f9"}}>Una vez comenzado el partido, se bloquea automáticamente.</b></p>
+        <p style={{...S2,marginTop:8,color:"#f59e0b",fontWeight:"bold"}}>Los resultados se actualizan solos al terminar cada partido.</p>
+        <div style={{background:"#0f172a",borderRadius:10,overflow:"hidden",marginTop:8}}>
+          {[["🎯","Resultado exacto","ej: 2-1 → 2-1","10 pts","#16a34a"],
+            ["🔥","Error de 1 gol","ej: 2-1 → 2-0","6 pts","#d97706"],
+            ["👍","Error de 2 goles","ej: 2-1 → 3-0","3 pts","#64748b"],
+            ["🤏","Error de 3 goles","ej: 3-0 → 1-1","1 pt","#475569"],
+            ["💥","Error de 4+ goles","muy lejos","0 pts","#334155"]].map(([ic,t,ex,pts,col],i)=>(
+            <div key={i} style={{display:"flex",alignItems:"center",gap:10,padding:"10px 12px",borderBottom:"1px solid #1e293b"}}>
+              <span style={{fontSize:20,width:24}}>{ic}</span>
+              <div style={{flex:1}}><div style={{fontSize:13,color:"#f1f5f9",fontWeight:500}}>{t}</div><div style={{fontSize:11,color:"#64748b",fontStyle:"italic"}}>{ex}</div></div>
+              <span style={{background:col,borderRadius:6,padding:"3px 9px",fontSize:13,fontWeight:"bold",color:"#fff"}}>{pts}</span>
+            </div>
+          ))}
+        </div>
+        <div style={{background:"#1e1b4b",border:"1px solid #7c3aed",borderRadius:10,padding:"10px 12px",marginTop:8,display:"flex",alignItems:"center",gap:10}}>
+          <span style={{fontSize:22}}>✅</span>
+          <div style={{flex:1}}><div style={{fontSize:13,color:"#f1f5f9",fontWeight:500}}>Bonus ganador/empate</div><div style={{fontSize:11,color:"#94a3b8",fontStyle:"italic"}}>Si aciertas quién gana o que hay empate</div></div>
+          <span style={{background:"#7c3aed",borderRadius:6,padding:"3px 9px",fontSize:13,fontWeight:"bold",color:"#fff"}}>+2 pts</span>
+        </div>
+      </Sec>
+      <Sec icon="🌟" title="Dream XI" color="#a855f7">
+        <p style={S2}>Elige <b style={{color:"#f1f5f9"}}>11 jugadores</b> de cualquier selección clasificada.</p>
+        <div style={{background:"#2e1065",border:"1px solid #7c3aed",borderRadius:10,padding:"10px 12px",margin:"8px 0"}}>
+          <div style={{fontSize:13,color:"#d8b4fe",fontWeight:"bold",marginBottom:4}}>⚠️ Regla TOP30</div>
+          <div style={{fontSize:12,color:"#c4b5fd"}}>Máximo <b>3 jugadores TOP30</b> (marcados con ★) en tu XI.</div>
+        </div>
+        <p style={S2}>Por cada TOP30 en tu XI → <b style={{color:"#f59e0b"}}>+1 punto por jornada jugada</b>.</p>
+      </Sec>
+      <Sec icon="🏆" title="Desempate y Premio" color="#f59e0b">
+        <p style={S2}>En caso de empate en puntos, gana quien haya acertado más resultados exactos (10 pts).</p>
+        <div style={{textAlign:"center",padding:"12px 0",fontSize:32}}>🏆⚽🎉</div>
+      </Sec>
+    </div>
+  );
+}
+
+
+// ── ADMIN ─────────────────────────────────────────────────────────────────
+function AdminTab({results,adminMode,adminPass,setAdminPass,onUnlock,onSave}) {
+  const [inp,setInp]=useState({});
+  const setV=(id,side,val)=>setInp(p=>({...p,[id]:{...(p[id]||{}),[side]:val}}));
+  if (!adminMode) return (
+    <div>
+      <div style={{fontWeight:"bold",fontSize:15,marginBottom:12}}>🔒 Panel de Administración</div>
+      <p style={{color:"#64748b",fontSize:13,marginBottom:12}}>Introduce los resultados oficiales tras cada partido.</p>
+      <input style={S.inp} type="password" placeholder="Contraseña..." value={adminPass}
+        onChange={e=>setAdminPass(e.target.value)} onKeyDown={e=>e.key==="Enter"&&onUnlock()}/>
+      <button style={S.btn} onClick={onUnlock}>Entrar</button>
+      <p style={{textAlign:"center",fontSize:12,color:"#475569",marginTop:10}}>Contraseña: mundial2026</p>
+    </div>
+  );
+  return (
+    <div>
+      <div style={{fontWeight:"bold",fontSize:15,marginBottom:4}}>⚙️ Resultados Oficiales</div>
+      <p style={{fontSize:12,color:"#64748b",marginBottom:12}}>Introduce el marcador final de cada partido.</p>
+      {MATCHES.map(m=>{
+        const hv=inp[m.id]?.home??results[m.id]?.home??"";
+        const av=inp[m.id]?.away??results[m.id]?.away??"";
+        return (
+          <div key={m.id} style={{background:"#1e293b",borderRadius:10,padding:12,marginBottom:7,border:"1px solid #334155"}}>
+            <div style={{display:"flex",gap:6,alignItems:"center",marginBottom:8}}>
+              <span style={{background:"#f59e0b",color:"#0f172a",fontSize:11,fontWeight:"bold",padding:"2px 7px",borderRadius:5}}>Gr. {m.group}</span>
+              <span style={{fontSize:12,color:"#64748b"}}>{m.date}</span>
+              {results[m.id]&&<span style={{fontSize:11,color:"#22c55e",marginLeft:"auto"}}>✓ {results[m.id].home}–{results[m.id].away}</span>}
+            </div>
+            <div style={{display:"flex",alignItems:"center",gap:6}}>
+              <span style={{flex:1,fontSize:13}}>{m.home}</span>
+              <input style={S.scoreBox} type="number" min="0" max="20" value={hv} onChange={e=>setV(m.id,"home",e.target.value)}/>
+              <span style={{color:"#f59e0b",fontWeight:"bold"}}>:</span>
+              <input style={S.scoreBox} type="number" min="0" max="20" value={av} onChange={e=>setV(m.id,"away",e.target.value)}/>
+              <span style={{flex:1,fontSize:13,textAlign:"right"}}>{m.away}</span>
+            </div>
+            <button style={{display:"block",width:"100%",marginTop:8,padding:"7px",background:"rgba(29,78,216,0.13)",
+              border:"1px solid #3b82f6",borderRadius:8,color:"#93c5fd",fontSize:13,cursor:"pointer"}}
+              onClick={()=>onSave(m.id,hv,av)}>Confirmar ✓</button>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+// ── ESTILOS ──────────────────────────────────────────────────────────────
+const S={
+  inp:{width:"100%",padding:"11px 14px",borderRadius:10,border:"1px solid #475569",background:"#0f172a",
+    color:"#f1f5f9",fontSize:15,marginBottom:10,fontFamily:"Georgia,serif",outline:"none"},
+  btn:{width:"100%",padding:"11px",borderRadius:10,background:"linear-gradient(135deg,#f59e0b,#d97706)",
+    border:"none",color:"#0f172a",fontSize:15,fontWeight:"bold",cursor:"pointer",fontFamily:"Georgia,serif"},
+  scoreBox:{width:46,height:38,borderRadius:8,border:"1px solid #475569",background:"#0f172a",
+    color:"#f1f5f9",textAlign:"center",fontSize:18,fontWeight:"bold",fontFamily:"Georgia,serif"},
+  saveBtn:{display:"block",width:"100%",marginTop:8,padding:"7px",background:"#0f3460",
+    border:"1px solid #1d4ed8",borderRadius:8,color:"#93c5fd",fontSize:13,cursor:"pointer",fontFamily:"Georgia,serif"},
+};
+
+ReactDOM.createRoot(document.getElementById("root")).render(<App/>);
+</script>
+</body>
+</html>
