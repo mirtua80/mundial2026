@@ -1,0 +1,1211 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Mundial 2026 · Quiniela</title>
+  <meta name="theme-color" content="#0f172a"/>
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{background:#0f172a;font-family:Georgia,serif;color:#f1f5f9}
+    input,select,button{font-family:Georgia,serif}
+    input[type=number]::-webkit-inner-spin-button{opacity:1}
+    @keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
+    .spin{animation:spin 1s linear infinite;display:inline-block}
+    ::-webkit-scrollbar{width:4px}
+    ::-webkit-scrollbar-track{background:#0f172a}
+    ::-webkit-scrollbar-thumb{background:#334155;border-radius:2px}
+  </style>
+</head>
+<body>
+<div id="root"><div style="display:flex;align-items:center;justify-content:center;height:100vh;flex-direction:column;gap:12px"><span class="spin" style="font-size:52px">⚽</span><span style="color:#94a3b8;font-family:Georgia,serif">Cargando…</span></div></div>
+
+<script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+<script>
+  firebase.initializeApp({
+    apiKey:            "AIzaSyBtM12ju7WQx0JxS6ZyqnVuPXa8XsN5s5c",
+    authDomain:        "mundialfamily2026.firebaseapp.com",
+    databaseURL:       "https://mundialfamily2026-default-rtdb.europe-west1.firebasedatabase.app",
+    projectId:         "mundialfamily2026",
+    storageBucket:     "mundialfamily2026.firebasestorage.app",
+    messagingSenderId: "326404346172",
+    appId:             "1:326404346172:web:cf71962b10d5d945404e39"
+  });
+  const _db = firebase.database();
+  window._fb = {
+    db: _db,
+    ref: (db, path) => firebase.database().ref(path),
+    onValue: (ref, cb) => { ref.on('value', snap => cb(snap)); return () => ref.off('value'); },
+    set: (ref, val) => ref.set(val),
+    get: (ref) => ref.once('value')
+  };
+</script>
+
+<script type="text/babel" data-presets="react">
+const { useState, useEffect, useCallback } = React;
+
+// ── PARTIDOS ──────────────────────────────────────────────────────────────
+const MATCHES = [
+  {id:1,  home:"México",          away:"Sudáfrica",       group:"A", date:"11 Jun"},
+  {id:2,  home:"Corea del Sur",   away:"Rep. Checa",      group:"A", date:"12 Jun"},
+  {id:3,  home:"México",          away:"Corea del Sur",   group:"A", date:"15 Jun"},
+  {id:4,  home:"Rep. Checa",      away:"Sudáfrica",       group:"A", date:"15 Jun"},
+  {id:5,  home:"Sudáfrica",       away:"Corea del Sur",   group:"A", date:"19 Jun"},
+  {id:6,  home:"Rep. Checa",      away:"México",          group:"A", date:"19 Jun"},
+  {id:7,  home:"Canadá",          away:"Bosnia-Herz.",    group:"B", date:"11 Jun"},
+  {id:8,  home:"Qatar",           away:"Suiza",           group:"B", date:"12 Jun"},
+  {id:9,  home:"Canadá",          away:"Qatar",           group:"B", date:"16 Jun"},
+  {id:10, home:"Suiza",           away:"Bosnia-Herz.",    group:"B", date:"16 Jun"},
+  {id:11, home:"Bosnia-Herz.",    away:"Qatar",           group:"B", date:"20 Jun"},
+  {id:12, home:"Suiza",           away:"Canadá",          group:"B", date:"20 Jun"},
+  {id:13, home:"Brasil",          away:"Marruecos",       group:"C", date:"12 Jun"},
+  {id:14, home:"Haití",           away:"Escocia",         group:"C", date:"13 Jun"},
+  {id:15, home:"Brasil",          away:"Haití",           group:"C", date:"17 Jun"},
+  {id:16, home:"Escocia",         away:"Marruecos",       group:"C", date:"17 Jun"},
+  {id:17, home:"Marruecos",       away:"Haití",           group:"C", date:"21 Jun"},
+  {id:18, home:"Escocia",         away:"Brasil",          group:"C", date:"21 Jun"},
+  {id:19, home:"EEUU",            away:"Paraguay",        group:"D", date:"13 Jun"},
+  {id:20, home:"Australia",       away:"Turquía",         group:"D", date:"13 Jun"},
+  {id:21, home:"EEUU",            away:"Australia",       group:"D", date:"17 Jun"},
+  {id:22, home:"Turquía",         away:"Paraguay",        group:"D", date:"18 Jun"},
+  {id:23, home:"Paraguay",        away:"Australia",       group:"D", date:"22 Jun"},
+  {id:24, home:"Turquía",         away:"EEUU",            group:"D", date:"22 Jun"},
+  {id:25, home:"Alemania",        away:"Curazao",         group:"E", date:"13 Jun"},
+  {id:26, home:"Costa de Marfil", away:"Ecuador",         group:"E", date:"14 Jun"},
+  {id:27, home:"Alemania",        away:"Costa de Marfil", group:"E", date:"18 Jun"},
+  {id:28, home:"Ecuador",         away:"Curazao",         group:"E", date:"18 Jun"},
+  {id:29, home:"Curazao",         away:"Costa de Marfil", group:"E", date:"22 Jun"},
+  {id:30, home:"Ecuador",         away:"Alemania",        group:"E", date:"22 Jun"},
+  {id:31, home:"Países Bajos",    away:"Japón",           group:"F", date:"14 Jun"},
+  {id:32, home:"Túnez",           away:"Suecia",          group:"F", date:"14 Jun"},
+  {id:33, home:"Países Bajos",    away:"Túnez",           group:"F", date:"18 Jun"},
+  {id:34, home:"Suecia",          away:"Japón",           group:"F", date:"19 Jun"},
+  {id:35, home:"Japón",           away:"Túnez",           group:"F", date:"23 Jun"},
+  {id:36, home:"Suecia",          away:"Países Bajos",    group:"F", date:"23 Jun"},
+  {id:37, home:"Bélgica",         away:"Egipto",          group:"G", date:"15 Jun"},
+  {id:38, home:"Irán",            away:"Nueva Zelanda",   group:"G", date:"15 Jun"},
+  {id:39, home:"Bélgica",         away:"Irán",            group:"G", date:"19 Jun"},
+  {id:40, home:"Nueva Zelanda",   away:"Egipto",          group:"G", date:"19 Jun"},
+  {id:41, home:"Egipto",          away:"Irán",            group:"G", date:"23 Jun"},
+  {id:42, home:"Nueva Zelanda",   away:"Bélgica",         group:"G", date:"23 Jun"},
+  {id:43, home:"España",          away:"Cabo Verde",      group:"H", date:"15 Jun"},
+  {id:44, home:"Arabia Saudí",    away:"Uruguay",         group:"H", date:"16 Jun"},
+  {id:45, home:"España",          away:"Arabia Saudí",    group:"H", date:"20 Jun"},
+  {id:46, home:"Uruguay",         away:"Cabo Verde",      group:"H", date:"20 Jun"},
+  {id:47, home:"Cabo Verde",      away:"Arabia Saudí",    group:"H", date:"24 Jun"},
+  {id:48, home:"Uruguay",         away:"España",          group:"H", date:"24 Jun"},
+  {id:49, home:"Francia",         away:"Senegal",         group:"I", date:"16 Jun"},
+  {id:50, home:"Irak",            away:"Noruega",         group:"I", date:"16 Jun"},
+  {id:51, home:"Francia",         away:"Irak",            group:"I", date:"20 Jun"},
+  {id:52, home:"Noruega",         away:"Senegal",         group:"I", date:"21 Jun"},
+  {id:53, home:"Senegal",         away:"Irak",            group:"I", date:"25 Jun"},
+  {id:54, home:"Noruega",         away:"Francia",         group:"I", date:"25 Jun"},
+  {id:55, home:"Argentina",       away:"Argelia",         group:"J", date:"16 Jun"},
+  {id:56, home:"Austria",         away:"Jordania",        group:"J", date:"17 Jun"},
+  {id:57, home:"Argentina",       away:"Austria",         group:"J", date:"21 Jun"},
+  {id:58, home:"Jordania",        away:"Argelia",         group:"J", date:"21 Jun"},
+  {id:59, home:"Argelia",         away:"Austria",         group:"J", date:"25 Jun"},
+  {id:60, home:"Jordania",        away:"Argentina",       group:"J", date:"25 Jun"},
+  {id:61, home:"Portugal",        away:"Uzbekistán",      group:"K", date:"17 Jun"},
+  {id:62, home:"Colombia",        away:"RD Congo",        group:"K", date:"17 Jun"},
+  {id:63, home:"Portugal",        away:"Colombia",        group:"K", date:"21 Jun"},
+  {id:64, home:"RD Congo",        away:"Uzbekistán",      group:"K", date:"22 Jun"},
+  {id:65, home:"Uzbekistán",      away:"Colombia",        group:"K", date:"26 Jun"},
+  {id:66, home:"RD Congo",        away:"Portugal",        group:"K", date:"26 Jun"},
+  {id:67, home:"Inglaterra",      away:"Croacia",         group:"L", date:"17 Jun"},
+  {id:68, home:"Ghana",           away:"Panamá",          group:"L", date:"18 Jun"},
+  {id:69, home:"Inglaterra",      away:"Ghana",           group:"L", date:"22 Jun"},
+  {id:70, home:"Panamá",          away:"Croacia",         group:"L", date:"22 Jun"},
+  {id:71, home:"Croacia",         away:"Ghana",           group:"L", date:"26 Jun"},
+  {id:72, home:"Panamá",          away:"Inglaterra",      group:"L", date:"26 Jun"},
+];
+
+const TEAMS = [
+  {name:"México",flag:"🇲🇽"},{name:"Sudáfrica",flag:"🇿🇦"},{name:"Corea del Sur",flag:"🇰🇷"},{name:"Rep. Checa",flag:"🇨🇿"},
+  {name:"Canadá",flag:"🇨🇦"},{name:"Bosnia-Herz.",flag:"🇧🇦"},{name:"Qatar",flag:"🇶🇦"},{name:"Suiza",flag:"🇨🇭"},
+  {name:"Brasil",flag:"🇧🇷"},{name:"Marruecos",flag:"🇲🇦"},{name:"Haití",flag:"🇭🇹"},{name:"Escocia",flag:"🏴󠁧󠁢󠁳󠁣󠁴󠁿"},
+  {name:"EEUU",flag:"🇺🇸"},{name:"Paraguay",flag:"🇵🇾"},{name:"Australia",flag:"🇦🇺"},{name:"Turquía",flag:"🇹🇷"},
+  {name:"Alemania",flag:"🇩🇪"},{name:"Curazao",flag:"🇨🇼"},{name:"Costa de Marfil",flag:"🇨🇮"},{name:"Ecuador",flag:"🇪🇨"},
+  {name:"Países Bajos",flag:"🇳🇱"},{name:"Japón",flag:"🇯🇵"},{name:"Túnez",flag:"🇹🇳"},{name:"Suecia",flag:"🇸🇪"},
+  {name:"Bélgica",flag:"🇧🇪"},{name:"Egipto",flag:"🇪🇬"},{name:"Irán",flag:"🇮🇷"},{name:"Nueva Zelanda",flag:"🇳🇿"},
+  {name:"España",flag:"🇪🇸"},{name:"Cabo Verde",flag:"🇨🇻"},{name:"Arabia Saudí",flag:"🇸🇦"},{name:"Uruguay",flag:"🇺🇾"},
+  {name:"Francia",flag:"🇫🇷"},{name:"Senegal",flag:"🇸🇳"},{name:"Irak",flag:"🇮🇶"},{name:"Noruega",flag:"🇳🇴"},
+  {name:"Argentina",flag:"🇦🇷"},{name:"Argelia",flag:"🇩🇿"},{name:"Austria",flag:"🇦🇹"},{name:"Jordania",flag:"🇯🇴"},
+  {name:"Portugal",flag:"🇵🇹"},{name:"Uzbekistán",flag:"🇺🇿"},{name:"Colombia",flag:"🇨🇴"},{name:"RD Congo",flag:"🇨🇩"},
+  {name:"Inglaterra",flag:"🏴󠁧󠁢󠁥󠁮󠁧󠁿"},{name:"Croacia",flag:"🇭🇷"},{name:"Ghana",flag:"🇬🇭"},{name:"Panamá",flag:"🇵🇦"},
+];
+
+const TOP30 = new Set([
+  "Kylian Mbappé","Lamine Yamal","Ousmane Dembélé","Lionel Messi","Harry Kane",
+  "Bruno Fernandes","Raphinha","Erling Haaland","Michael Olise","Désiré Doué",
+  "Rodri","Pedri","Achraf Hakimi","Vitinha","Federico Valverde",
+  "Cristiano Ronaldo","Joao Neves","Kevin De Bruyne","Vinicius Jr.","Julián Álvarez",
+  "Jude Bellingham","Lautaro Martínez","Thibaut Courtois","Declan Rice","Gavi",
+  "Rúben Dias","Bukayo Saka","Jamal Musiala","Phil Foden","Romelu Lukaku"
+]);
+
+const PLAYERS = [
+  {name:"Emiliano Martínez",country:"Argentina",flag:"🇦🇷",pos:"POR"},{name:"Cristian Romero",country:"Argentina",flag:"🇦🇷",pos:"DEF"},
+  {name:"Alexis Mac Allister",country:"Argentina",flag:"🇦🇷",pos:"MED"},{name:"Rodrigo De Paul",country:"Argentina",flag:"🇦🇷",pos:"MED"},
+  {name:"Lionel Messi",country:"Argentina",flag:"🇦🇷",pos:"DEL"},{name:"Julián Álvarez",country:"Argentina",flag:"🇦🇷",pos:"DEL"},
+  {name:"Lautaro Martínez",country:"Argentina",flag:"🇦🇷",pos:"DEL"},{name:"Nicolás Otamendi",country:"Argentina",flag:"🇦🇷",pos:"DEF"},
+  {name:"Alisson",country:"Brasil",flag:"🇧🇷",pos:"POR"},{name:"Marquinhos",country:"Brasil",flag:"🇧🇷",pos:"DEF"},
+  {name:"Danilo",country:"Brasil",flag:"🇧🇷",pos:"DEF"},{name:"Casemiro",country:"Brasil",flag:"🇧🇷",pos:"MED"},
+  {name:"Lucas Paquetá",country:"Brasil",flag:"🇧🇷",pos:"MED"},{name:"Vinicius Jr.",country:"Brasil",flag:"🇧🇷",pos:"DEL"},
+  {name:"Raphinha",country:"Brasil",flag:"🇧🇷",pos:"DEL"},{name:"Rodrygo",country:"Brasil",flag:"🇧🇷",pos:"DEL"},
+  {name:"Endrick",country:"Brasil",flag:"🇧🇷",pos:"DEL"},{name:"Mike Maignan",country:"Francia",flag:"🇫🇷",pos:"POR"},
+  {name:"William Saliba",country:"Francia",flag:"🇫🇷",pos:"DEF"},{name:"Théo Hernández",country:"Francia",flag:"🇫🇷",pos:"DEF"},
+  {name:"Jules Koundé",country:"Francia",flag:"🇫🇷",pos:"DEF"},{name:"Aurélien Tchouaméni",country:"Francia",flag:"🇫🇷",pos:"MED"},
+  {name:"N'Golo Kanté",country:"Francia",flag:"🇫🇷",pos:"MED"},{name:"Kylian Mbappé",country:"Francia",flag:"🇫🇷",pos:"DEL"},
+  {name:"Ousmane Dembélé",country:"Francia",flag:"🇫🇷",pos:"DEL"},{name:"Michael Olise",country:"Francia",flag:"🇫🇷",pos:"DEL"},
+  {name:"Désiré Doué",country:"Francia",flag:"🇫🇷",pos:"DEL"},{name:"David Raya",country:"España",flag:"🇪🇸",pos:"POR"},
+  {name:"Dani Carvajal",country:"España",flag:"🇪🇸",pos:"DEF"},{name:"Aymeric Laporte",country:"España",flag:"🇪🇸",pos:"DEF"},
+  {name:"Alejandro Grimaldo",country:"España",flag:"🇪🇸",pos:"DEF"},{name:"Rodri",country:"España",flag:"🇪🇸",pos:"MED"},
+  {name:"Pedri",country:"España",flag:"🇪🇸",pos:"MED"},{name:"Gavi",country:"España",flag:"🇪🇸",pos:"MED"},
+  {name:"Lamine Yamal",country:"España",flag:"🇪🇸",pos:"DEL"},{name:"Álvaro Morata",country:"España",flag:"🇪🇸",pos:"DEL"},
+  {name:"Diogo Costa",country:"Portugal",flag:"🇵🇹",pos:"POR"},{name:"Rúben Dias",country:"Portugal",flag:"🇵🇹",pos:"DEF"},
+  {name:"Nuno Mendes",country:"Portugal",flag:"🇵🇹",pos:"DEF"},{name:"Vitinha",country:"Portugal",flag:"🇵🇹",pos:"MED"},
+  {name:"Bruno Fernandes",country:"Portugal",flag:"🇵🇹",pos:"MED"},{name:"Joao Neves",country:"Portugal",flag:"🇵🇹",pos:"MED"},
+  {name:"Bernardo Silva",country:"Portugal",flag:"🇵🇹",pos:"MED"},{name:"Cristiano Ronaldo",country:"Portugal",flag:"🇵🇹",pos:"DEL"},
+  {name:"Rafael Leão",country:"Portugal",flag:"🇵🇹",pos:"DEL"},{name:"Jordan Pickford",country:"Inglaterra",flag:"🏴󠁧󠁢󠁥󠁮󠁧󠁿",pos:"POR"},
+  {name:"Trent Alexander-Arnold",country:"Inglaterra",flag:"🏴󠁧󠁢󠁥󠁮󠁧󠁿",pos:"DEF"},{name:"John Stones",country:"Inglaterra",flag:"🏴󠁧󠁢󠁥󠁮󠁧󠁿",pos:"DEF"},
+  {name:"Declan Rice",country:"Inglaterra",flag:"🏴󠁧󠁢󠁥󠁮󠁧󠁿",pos:"MED"},{name:"Jude Bellingham",country:"Inglaterra",flag:"🏴󠁧󠁢󠁥󠁮󠁧󠁿",pos:"MED"},
+  {name:"Phil Foden",country:"Inglaterra",flag:"🏴󠁧󠁢󠁥󠁮󠁧󠁿",pos:"MED"},{name:"Bukayo Saka",country:"Inglaterra",flag:"🏴󠁧󠁢󠁥󠁮󠁧󠁿",pos:"DEL"},
+  {name:"Harry Kane",country:"Inglaterra",flag:"🏴󠁧󠁢󠁥󠁮󠁧󠁿",pos:"DEL"},{name:"Manuel Neuer",country:"Alemania",flag:"🇩🇪",pos:"POR"},
+  {name:"Antonio Rüdiger",country:"Alemania",flag:"🇩🇪",pos:"DEF"},{name:"Joshua Kimmich",country:"Alemania",flag:"🇩🇪",pos:"DEF"},
+  {name:"Florian Wirtz",country:"Alemania",flag:"🇩🇪",pos:"MED"},{name:"Jamal Musiala",country:"Alemania",flag:"🇩🇪",pos:"MED"},
+  {name:"Kai Havertz",country:"Alemania",flag:"🇩🇪",pos:"DEL"},{name:"Leroy Sané",country:"Alemania",flag:"🇩🇪",pos:"DEL"},
+  {name:"Bart Verbruggen",country:"P. Bajos",flag:"🇳🇱",pos:"POR"},{name:"Virgil van Dijk",country:"P. Bajos",flag:"🇳🇱",pos:"DEF"},
+  {name:"Matthijs de Ligt",country:"P. Bajos",flag:"🇳🇱",pos:"DEF"},{name:"Ryan Gravenberch",country:"P. Bajos",flag:"🇳🇱",pos:"MED"},
+  {name:"Tijjani Reijnders",country:"P. Bajos",flag:"🇳🇱",pos:"MED"},{name:"Cody Gakpo",country:"P. Bajos",flag:"🇳🇱",pos:"DEL"},
+  {name:"Xavi Simons",country:"P. Bajos",flag:"🇳🇱",pos:"DEL"},{name:"Yassine Bounou",country:"Marruecos",flag:"🇲🇦",pos:"POR"},
+  {name:"Achraf Hakimi",country:"Marruecos",flag:"🇲🇦",pos:"DEF"},{name:"Sofyan Amrabat",country:"Marruecos",flag:"🇲🇦",pos:"MED"},
+  {name:"Hakim Ziyech",country:"Marruecos",flag:"🇲🇦",pos:"DEL"},{name:"Youssef En-Nesyri",country:"Marruecos",flag:"🇲🇦",pos:"DEL"},
+  {name:"Thibaut Courtois",country:"Bélgica",flag:"🇧🇪",pos:"POR"},{name:"Kevin De Bruyne",country:"Bélgica",flag:"🇧🇪",pos:"MED"},
+  {name:"Romelu Lukaku",country:"Bélgica",flag:"🇧🇪",pos:"DEL"},{name:"Federico Valverde",country:"Uruguay",flag:"🇺🇾",pos:"MED"},
+  {name:"Darwin Núñez",country:"Uruguay",flag:"🇺🇾",pos:"DEL"},{name:"Luis Suárez",country:"Uruguay",flag:"🇺🇾",pos:"DEL"},
+  {name:"Rodrigo Bentancur",country:"Uruguay",flag:"🇺🇾",pos:"MED"},{name:"Sergio Rochet",country:"Uruguay",flag:"🇺🇾",pos:"POR"},
+  {name:"Erling Haaland",country:"Noruega",flag:"🇳🇴",pos:"DEL"},{name:"Sander Berge",country:"Noruega",flag:"🇳🇴",pos:"MED"},
+  {name:"Alexander Sørloth",country:"Noruega",flag:"🇳🇴",pos:"DEL"},{name:"Martin Ødegaard",country:"Noruega",flag:"🇳🇴",pos:"MED"},
+  {name:"James Rodríguez",country:"Colombia",flag:"🇨🇴",pos:"MED"},{name:"Luis Díaz",country:"Colombia",flag:"🇨🇴",pos:"DEL"},
+  {name:"Camilo Vargas",country:"Colombia",flag:"🇨🇴",pos:"POR"},{name:"Dávinson Sánchez",country:"Colombia",flag:"🇨🇴",pos:"DEF"},
+  {name:"Radamel Falcao",country:"Colombia",flag:"🇨🇴",pos:"DEL"},{name:"Son Heung-min",country:"Corea del Sur",flag:"🇰🇷",pos:"DEL"},
+  {name:"Kim Min-jae",country:"Corea del Sur",flag:"🇰🇷",pos:"DEF"},{name:"Lee Kang-in",country:"Corea del Sur",flag:"🇰🇷",pos:"MED"},
+  {name:"Hwang Hee-chan",country:"Corea del Sur",flag:"🇰🇷",pos:"DEL"},{name:"Alphonso Davies",country:"Canadá",flag:"🇨🇦",pos:"DEF"},
+  {name:"Jonathan David",country:"Canadá",flag:"🇨🇦",pos:"DEL"},{name:"Tajon Buchanan",country:"Canadá",flag:"🇨🇦",pos:"DEL"},
+  {name:"Cyle Larin",country:"Canadá",flag:"🇨🇦",pos:"DEL"},{name:"Maxime Crépeau",country:"Canadá",flag:"🇨🇦",pos:"POR"},
+  {name:"Mohamed Salah",country:"Egipto",flag:"🇪🇬",pos:"DEL"},{name:"Mohamed El-Shenawy",country:"Egipto",flag:"🇪🇬",pos:"POR"},
+  {name:"Trezeguet",country:"Egipto",flag:"🇪🇬",pos:"DEL"},{name:"Ahmed Hegazi",country:"Egipto",flag:"🇪🇬",pos:"DEF"},
+  {name:"Hakan Çalhanoğlu",country:"Turquía",flag:"🇹🇷",pos:"MED"},{name:"Arda Güler",country:"Turquía",flag:"🇹🇷",pos:"MED"},
+  {name:"Kerem Aktürkoğlu",country:"Turquía",flag:"🇹🇷",pos:"DEL"},{name:"Uğurcan Çakır",country:"Turquía",flag:"🇹🇷",pos:"POR"},
+  {name:"Zeki Çelik",country:"Turquía",flag:"🇹🇷",pos:"DEF"},{name:"Miguel Almirón",country:"Paraguay",flag:"🇵🇾",pos:"MED"},
+  {name:"Julio Enciso",country:"Paraguay",flag:"🇵🇾",pos:"DEL"},{name:"Ángel Romero",country:"Paraguay",flag:"🇵🇾",pos:"DEL"},
+  {name:"Gustavo Gómez",country:"Paraguay",flag:"🇵🇾",pos:"DEF"},{name:"Moises Caicedo",country:"Ecuador",flag:"🇪🇨",pos:"MED"},
+  {name:"Enner Valencia",country:"Ecuador",flag:"🇪🇨",pos:"DEL"},{name:"Piero Hincapié",country:"Ecuador",flag:"🇪🇨",pos:"DEF"},
+  {name:"Luka Modrić",country:"Croacia",flag:"🇭🇷",pos:"MED"},{name:"Joško Gvardiol",country:"Croacia",flag:"🇭🇷",pos:"DEF"},
+  {name:"Andrej Kramarić",country:"Croacia",flag:"🇭🇷",pos:"DEL"},{name:"Mateo Kovačić",country:"Croacia",flag:"🇭🇷",pos:"MED"},
+  {name:"Sadio Mané",country:"Senegal",flag:"🇸🇳",pos:"DEL"},{name:"Kalidou Koulibaly",country:"Senegal",flag:"🇸🇳",pos:"DEF"},
+  {name:"Ismaïla Sarr",country:"Senegal",flag:"🇸🇳",pos:"DEL"},{name:"Idrissa Gueye",country:"Senegal",flag:"🇸🇳",pos:"MED"},
+  {name:"Thomas Partey",country:"Ghana",flag:"🇬🇭",pos:"MED"},{name:"Mohammed Kudus",country:"Ghana",flag:"🇬🇭",pos:"MED"},
+  {name:"André Ayew",country:"Ghana",flag:"🇬🇭",pos:"DEL"},{name:"Granit Xhaka",country:"Suiza",flag:"🇨🇭",pos:"MED"},
+  {name:"Xherdan Shaqiri",country:"Suiza",flag:"🇨🇭",pos:"DEL"},{name:"Manuel Akanji",country:"Suiza",flag:"🇨🇭",pos:"DEF"},
+  {name:"Yann Sommer",country:"Suiza",flag:"🇨🇭",pos:"POR"},{name:"Salem Al-Dawsari",country:"Arabia Saudí",flag:"🇸🇦",pos:"DEL"},
+  {name:"Firas Al-Buraikan",country:"Arabia Saudí",flag:"🇸🇦",pos:"DEL"},{name:"Mohammed Al-Owais",country:"Arabia Saudí",flag:"🇸🇦",pos:"POR"},
+  {name:"Guillermo Ochoa",country:"México",flag:"🇲🇽",pos:"POR"},{name:"Santiago Giménez",country:"México",flag:"🇲🇽",pos:"DEL"},
+  {name:"Hirving Lozano",country:"México",flag:"🇲🇽",pos:"DEL"},{name:"Edson Álvarez",country:"México",flag:"🇲🇽",pos:"MED"},
+  {name:"Raúl Jiménez",country:"México",flag:"🇲🇽",pos:"DEL"},{name:"Christian Pulisic",country:"EEUU",flag:"🇺🇸",pos:"DEL"},
+  {name:"Weston McKennie",country:"EEUU",flag:"🇺🇸",pos:"MED"},{name:"Tyler Adams",country:"EEUU",flag:"🇺🇸",pos:"MED"},
+  {name:"Ricardo Pepi",country:"EEUU",flag:"🇺🇸",pos:"DEL"},{name:"Matt Turner",country:"EEUU",flag:"🇺🇸",pos:"POR"},
+  {name:"Percy Tau",country:"Sudáfrica",flag:"🇿🇦",pos:"DEL"},{name:"Themba Zwane",country:"Sudáfrica",flag:"🇿🇦",pos:"DEL"},
+  {name:"Ronwen Williams",country:"Sudáfrica",flag:"🇿🇦",pos:"POR"},{name:"Bongani Zungu",country:"Sudáfrica",flag:"🇿🇦",pos:"MED"},
+  {name:"Patrik Schick",country:"Rep. Checa",flag:"🇨🇿",pos:"DEL"},{name:"Tomáš Souček",country:"Rep. Checa",flag:"🇨🇿",pos:"MED"},
+  {name:"Vladimír Coufal",country:"Rep. Checa",flag:"🇨🇿",pos:"DEF"},{name:"Edin Džeko",country:"Bosnia-Herz.",flag:"🇧🇦",pos:"DEL"},
+  {name:"Miralem Pjanić",country:"Bosnia-Herz.",flag:"🇧🇦",pos:"MED"},{name:"Ermedin Demirović",country:"Bosnia-Herz.",flag:"🇧🇦",pos:"DEL"},
+  {name:"Almoez Ali",country:"Qatar",flag:"🇶🇦",pos:"DEL"},{name:"Akram Afif",country:"Qatar",flag:"🇶🇦",pos:"DEL"},
+  {name:"Hassan Al-Haydos",country:"Qatar",flag:"🇶🇦",pos:"DEL"},{name:"Josué Duverger",country:"Haití",flag:"🇭🇹",pos:"DEL"},
+  {name:"Derrick Étienne",country:"Haití",flag:"🇭🇹",pos:"DEL"},{name:"Andy Robertson",country:"Escocia",flag:"🏴󠁧󠁢󠁳󠁣󠁴󠁿",pos:"DEF"},
+  {name:"Scott McTominay",country:"Escocia",flag:"🏴󠁧󠁢󠁳󠁣󠁴󠁿",pos:"MED"},{name:"Che Adams",country:"Escocia",flag:"🏴󠁧󠁢󠁳󠁣󠁴󠁿",pos:"DEL"},
+  {name:"John McGinn",country:"Escocia",flag:"🏴󠁧󠁢󠁳󠁣󠁴󠁿",pos:"MED"},{name:"Mat Ryan",country:"Australia",flag:"🇦🇺",pos:"POR"},
+  {name:"Mathew Leckie",country:"Australia",flag:"🇦🇺",pos:"DEL"},{name:"Aaron Mooy",country:"Australia",flag:"🇦🇺",pos:"MED"},
+  {name:"Harry Souttar",country:"Australia",flag:"🇦🇺",pos:"DEF"},{name:"Sébastien Haller",country:"Costa de Marfil",flag:"🇨🇮",pos:"DEL"},
+  {name:"Franck Kessié",country:"Costa de Marfil",flag:"🇨🇮",pos:"MED"},{name:"Wilfried Zaha",country:"Costa de Marfil",flag:"🇨🇮",pos:"DEL"},
+  {name:"Victor Lindelöf",country:"Suecia",flag:"🇸🇪",pos:"DEF"},{name:"Alexander Isak",country:"Suecia",flag:"🇸🇪",pos:"DEL"},
+  {name:"Dejan Kulusevski",country:"Suecia",flag:"🇸🇪",pos:"MED"},{name:"Viktor Gyökeres",country:"Suecia",flag:"🇸🇪",pos:"DEL"},
+  {name:"Emil Forsberg",country:"Suecia",flag:"🇸🇪",pos:"MED"},{name:"Mehdi Taremi",country:"Irán",flag:"🇮🇷",pos:"DEL"},
+  {name:"Sardar Azmoun",country:"Irán",flag:"🇮🇷",pos:"DEL"},{name:"Alireza Beiranvand",country:"Irán",flag:"🇮🇷",pos:"POR"},
+  {name:"Chris Wood",country:"Nueva Zelanda",flag:"🇳🇿",pos:"DEL"},{name:"Liberato Cacace",country:"Nueva Zelanda",flag:"🇳🇿",pos:"DEF"},
+  {name:"Garry Rodrigues",country:"Cabo Verde",flag:"🇨🇻",pos:"DEL"},{name:"Ryan Mendes",country:"Cabo Verde",flag:"🇨🇻",pos:"DEL"},
+  {name:"Wahbi Khazri",country:"Túnez",flag:"🇹🇳",pos:"DEL"},{name:"Ellyes Skhiri",country:"Túnez",flag:"🇹🇳",pos:"MED"},
+  {name:"Aymen Hussein",country:"Irak",flag:"🇮🇶",pos:"DEL"},{name:"Ali Adnan",country:"Irak",flag:"🇮🇶",pos:"DEF"},
+  {name:"Riyad Mahrez",country:"Argelia",flag:"🇩🇿",pos:"DEL"},{name:"Islam Slimani",country:"Argelia",flag:"🇩🇿",pos:"DEL"},
+  {name:"Sofiane Feghouli",country:"Argelia",flag:"🇩🇿",pos:"MED"},{name:"Marcel Sabitzer",country:"Austria",flag:"🇦🇹",pos:"MED"},
+  {name:"Marko Arnautovic",country:"Austria",flag:"🇦🇹",pos:"DEL"},{name:"David Alaba",country:"Austria",flag:"🇦🇹",pos:"DEF"},
+  {name:"Moussa Al-Taamari",country:"Jordania",flag:"🇯🇴",pos:"DEL"},{name:"Eldor Shomurodov",country:"Uzbekistán",flag:"🇺🇿",pos:"DEL"},
+  {name:"Jasur Jalolov",country:"Uzbekistán",flag:"🇺🇿",pos:"DEL"},{name:"Cédric Bakambu",country:"RD Congo",flag:"🇨🇩",pos:"DEL"},
+  {name:"Chancel Mbemba",country:"RD Congo",flag:"🇨🇩",pos:"DEF"},{name:"Rolando Blackburn",country:"Panamá",flag:"🇵🇦",pos:"DEL"},
+  {name:"Anibal Godoy",country:"Panamá",flag:"🇵🇦",pos:"MED"},{name:"Harold Cummings",country:"Panamá",flag:"🇵🇦",pos:"DEF"},
+  {name:"Leandro Bacuna",country:"Curazao",flag:"🇨🇼",pos:"MED"},{name:"Juninho",country:"Curazao",flag:"🇨🇼",pos:"DEL"},
+];
+
+// ── HELPERS ───────────────────────────────────────────────────────────────
+function calcPoints(pred, real, joker=false) {
+  if (!pred||!real) return {pts:0,bonus:0,scorer:0,total:0,error:null};
+  const ph=parseInt(pred.home),pa=parseInt(pred.away),rh=parseInt(real.home),ra=parseInt(real.away);
+  if ([ph,pa,rh,ra].some(isNaN)) return {pts:0,bonus:0,scorer:0,total:0,error:null};
+  const error=Math.abs(ph-rh)+Math.abs(pa-ra);
+  let pts=error===0?10:error===1?6:error===2?3:error===3?1:0;
+  const bonus=(ph>pa?"H":ph<pa?"A":"D")===(rh>ra?"H":rh<ra?"A":"D")?2:0;
+  const scorer=(pred.scorer&&real.scorer&&pred.scorer===real.scorer)?3:0;
+  if(joker) pts=pts*2;
+  return {pts,bonus,scorer,total:pts+bonus+scorer,error};
+}
+function mkBadge(r) {
+  if(r.error===null) return null;
+  if(r.error===0) return {label:`🎯 ${r.total}pts`,color:"#16a34a"};
+  if(r.total>0) return {label:`${r.pts}+${r.bonus+r.scorer}pts`,color:r.pts>=6?"#d97706":"#64748b"};
+  return {label:"❌ 0",color:"#475569"};
+}
+function btnS(bg,border,color){return {background:bg,border:`1px solid ${border}`,borderRadius:8,color,fontSize:12,cursor:"pointer",padding:"7px"};}
+function genCode(){return Math.random().toString(36).substring(2,8).toUpperCase();}
+
+const POS_COLOR={POR:"#f59e0b",DEF:"#3b82f6",MED:"#22c55e",DEL:"#ef4444"};
+const POS_LABEL={POR:"Portero",DEF:"Defensa",MED:"Centrocampista",DEL:"Delantero"};
+const COLORS=["#f59e0b","#3b82f6","#22c55e","#ef4444","#a855f7","#06b6d4","#f97316","#84cc16"];
+const TABS=["🏠","⚽","🏆","🌟","📊","📖"];
+const TLBL=["Inicio","Partidos","Campeón","Dream XI","Gráfica","Reglas"];
+
+// ── FIREBASE ──────────────────────────────────────────────────────────────
+function useFB(path, def) {
+  const [data,setData]=useState(def);
+  useEffect(()=>{
+    if(!window._fb||!path) return;
+    const {db,ref,onValue}=window._fb;
+    const unsub=onValue(ref(db,path),snap=>{ const v=snap.val(); setData(v!==null?v:def); });
+    return ()=>unsub();
+  },[path]);
+  const save=async(d)=>{ const {db,ref,set}=window._fb; await set(ref(db,path),d); };
+  return [data,save];
+}
+
+// ── APP ───────────────────────────────────────────────────────────────────
+function App() {
+  // Session stored in localStorage
+  const [session,setSession] = useState(()=>{
+    try{ return JSON.parse(localStorage.getItem("mundial26_session")||"null"); }catch(e){return null;}
+  });
+  // session = { groupCode, groupName, userName, isAdmin }
+
+  const [toast,setToast] = useState(null);
+  const toast_=(msg,type="ok")=>{setToast({msg,type});setTimeout(()=>setToast(null),2800);};
+
+  const saveSession=(s)=>{
+    localStorage.setItem("mundial26_session",JSON.stringify(s));
+    setSession(s);
+  };
+
+  if(!session) return <LobbyScreen onJoin={saveSession} toast_={toast_}/>;
+
+  if(session.isAdmin) return (
+    <AdminApp session={session} onExit={()=>saveSession(null)} toast_={toast_} toast={toast}/>
+  );
+
+  return (
+    <GroupApp session={session} onExit={()=>saveSession(null)} toast_={toast_} toast={toast}/>
+  );
+}
+
+// ── LOBBY ─────────────────────────────────────────────────────────────────
+function LobbyScreen({onJoin, toast_}) {
+  const [mode,setMode]       = useState("home");
+  const [gname,setGname]     = useState("");
+  const [newUser,setNewUser] = useState("");
+  const [code,setCode]       = useState("");
+  const [pass,setPass]       = useState("");
+  const [loading,setLoading] = useState(false);
+  // After entering code: show group info + existing members
+  const [foundGroup,setFoundGroup] = useState(null); // {code, name, members:[]}
+  const [manualName,setManualName] = useState("");
+
+  const handleJoin = (session) => {
+    // Save to localStorage for quick re-entry
+    try {
+      const saved = JSON.parse(localStorage.getItem("mundial26_groups")||"[]");
+      const filtered = saved.filter(g=>!(g.groupCode===session.groupCode&&g.userName===session.userName));
+      const updated = [{groupCode:session.groupCode,groupName:session.groupName,userName:session.userName},...filtered].slice(0,10);
+      localStorage.setItem("mundial26_groups",JSON.stringify(updated));
+    } catch(e){}
+    onJoin(session);
+  };
+
+  const createGroup = async () => {
+    if(!gname.trim()||!newUser.trim()) return;
+    setLoading(true);
+    const {db,ref,set,get}=window._fb;
+    let nc;
+    do { nc=genCode(); } while((await get(ref(db,`groups/${nc}`))).exists());
+    await set(ref(db,`groups/${nc}`),{name:gname.trim(),created:new Date().toISOString()});
+    await set(ref(db,`groups/${nc}/players/${newUser.trim()}`),{joined:new Date().toISOString()});
+    handleJoin({groupCode:nc,groupName:gname.trim(),userName:newUser.trim(),isAdmin:false});
+    setLoading(false);
+  };
+
+  // Step 1: look up group by code
+  const lookupGroup = async () => {
+    if(!code.trim()) return;
+    setLoading(true);
+    const {db,ref,get}=window._fb;
+    const snap=await get(ref(db,`groups/${code.toUpperCase()}`));
+    if(!snap.exists()){toast_("Código no encontrado ❌","err");setLoading(false);return;}
+    const grp=snap.val();
+    const members=Object.keys(grp.players||{});
+    setFoundGroup({code:code.toUpperCase(),name:grp.name,members});
+    setLoading(false);
+  };
+
+  // Step 2a: select existing member
+  const selectMember = async (name) => {
+    handleJoin({groupCode:foundGroup.code,groupName:foundGroup.name,userName:name,isAdmin:false});
+  };
+
+  // Step 2b: join as new member
+  const joinAsNew = async () => {
+    if(!manualName.trim()) return;
+    setLoading(true);
+    const {db,ref,set}=window._fb;
+    await set(ref(db,`groups/${foundGroup.code}/players/${manualName.trim()}`),{joined:new Date().toISOString()});
+    handleJoin({groupCode:foundGroup.code,groupName:foundGroup.name,userName:manualName.trim(),isAdmin:false});
+    setLoading(false);
+  };
+
+  const enterAdmin = () => {
+    if(pass==="mundial2026") onJoin({isAdmin:true,userName:"Admin"});
+    else toast_("Contraseña incorrecta ❌","err");
+  };
+
+  return (
+    <div style={{display:"flex",alignItems:"center",justifyContent:"center",minHeight:"100vh",background:"radial-gradient(ellipse at 50% 0%,#1e3a5f,#0f172a)",padding:20,overflowY:"auto"}}>
+      <div style={{background:"#1e293b",borderRadius:20,padding:"28px 22px",width:"100%",maxWidth:380,border:"1px solid rgba(245,158,11,0.27)",boxShadow:"0 20px 60px rgba(0,0,0,0.5)",textAlign:"center",marginTop:20,marginBottom:20}}>
+        <div style={{fontSize:46}}>⚽</div>
+        <h1 style={{fontSize:30,color:"#f59e0b",margin:"6px 0 4px",lineHeight:1.1}}>Mundial<br/>2026</h1>
+        <p style={{color:"#94a3b8",fontStyle:"italic",marginBottom:20,fontSize:13}}>Quiniela por grupos</p>
+
+        {/* HOME */}
+        {mode==="home"&&(
+          <div style={{display:"flex",flexDirection:"column",gap:9}}>
+            <button style={S.btn} onClick={()=>setMode("join")}>🔗 Entrar a mi grupo</button>
+            <button style={{...S.btn,background:"linear-gradient(135deg,#22c55e,#16a34a)",color:"#fff"}} onClick={()=>setMode("create")}>➕ Crear nuevo grupo</button>
+            <button style={{...S.btn,background:"transparent",border:"1px solid #334155",color:"#64748b",fontSize:13,marginTop:2}} onClick={()=>setMode("admin")}>⚙️ Admin</button>
+          </div>
+        )}
+
+        {/* JOIN — step 1: enter code */}
+        {mode==="join"&&!foundGroup&&(
+          <div>
+            <div style={{fontSize:12,color:"#94a3b8",marginBottom:14,textAlign:"left"}}>Introduce el código de tu grupo. El creador te lo habrá compartido.</div>
+            <input style={{...S.inp,textTransform:"uppercase",letterSpacing:6,fontSize:22,textAlign:"center",fontWeight:"bold"}}
+              placeholder="CÓDIGO" value={code} onChange={e=>setCode(e.target.value.toUpperCase())} maxLength={6}
+              onKeyDown={e=>e.key==="Enter"&&lookupGroup()}/>
+            <button style={{...S.btn,background:"linear-gradient(135deg,#3b82f6,#1d4ed8)",color:"#fff"}} onClick={lookupGroup} disabled={loading}>
+              {loading?"Buscando…":"Buscar grupo →"}
+            </button>
+            <button style={{...S.btn,background:"transparent",border:"1px solid #334155",color:"#64748b",marginTop:8,fontSize:13}} onClick={()=>setMode("home")}>← Volver</button>
+          </div>
+        )}
+
+        {/* JOIN — step 2: select or add member */}
+        {mode==="join"&&foundGroup&&(
+          <div>
+            <div style={{background:"rgba(245,158,11,0.1)",border:"1px solid #f59e0b44",borderRadius:10,padding:"10px 14px",marginBottom:16,textAlign:"left"}}>
+              <div style={{fontSize:11,color:"#64748b"}}>Grupo encontrado</div>
+              <div style={{fontWeight:"bold",fontSize:16,color:"#f59e0b"}}>{foundGroup.name}</div>
+              <div style={{fontSize:10,color:"#64748b",marginTop:2}}>Código: <b style={{letterSpacing:2}}>{foundGroup.code}</b></div>
+            </div>
+
+            {foundGroup.members.length>0&&(
+              <div style={{marginBottom:14,textAlign:"left"}}>
+                <div style={{fontSize:12,color:"#94a3b8",marginBottom:8}}>¿Eres uno de estos miembros? Toca tu nombre:</div>
+                {foundGroup.members.map(m=>(
+                  <button key={m} onClick={()=>selectMember(m)} style={{display:"flex",alignItems:"center",gap:10,width:"100%",padding:"11px 14px",background:"#0f172a",border:"1px solid #334155",borderRadius:10,marginBottom:6,cursor:"pointer",textAlign:"left"}}>
+                    <span style={{fontSize:22}}>👤</span>
+                    <span style={{flex:1,fontWeight:"bold",fontSize:14,color:"#f1f5f9"}}>{m}</span>
+                    <span style={{color:"#f59e0b",fontSize:16}}>→</span>
+                  </button>
+                ))}
+              </div>
+            )}
+
+            <div style={{borderTop:"1px solid #334155",paddingTop:14,textAlign:"left"}}>
+              <div style={{fontSize:12,color:"#94a3b8",marginBottom:8}}>¿Primera vez? Añade tu nombre:</div>
+              <input style={S.inp} placeholder="Tu nombre" value={manualName} onChange={e=>setManualName(e.target.value)} onKeyDown={e=>e.key==="Enter"&&joinAsNew()}/>
+              <button style={{...S.btn,background:"linear-gradient(135deg,#3b82f6,#1d4ed8)",color:"#fff"}} onClick={joinAsNew} disabled={loading}>
+                {loading?"Entrando…":"Unirme →"}
+              </button>
+            </div>
+
+            <button style={{...S.btn,background:"transparent",border:"1px solid #334155",color:"#64748b",marginTop:8,fontSize:13}} onClick={()=>{setFoundGroup(null);setCode("");}}>← Cambiar código</button>
+          </div>
+        )}
+
+        {/* CREATE */}
+        {mode==="create"&&(
+          <div>
+            <div style={{fontSize:12,color:"#94a3b8",marginBottom:14,textAlign:"left"}}>Crea tu grupo y comparte el código con tu familia.</div>
+            <input style={S.inp} placeholder="Nombre del grupo (ej: Familia García)" value={gname} onChange={e=>setGname(e.target.value)}/>
+            <input style={S.inp} placeholder="Tu nombre" value={newUser} onChange={e=>setNewUser(e.target.value)} onKeyDown={e=>e.key==="Enter"&&createGroup()}/>
+            <button style={S.btn} onClick={createGroup} disabled={loading}>{loading?"Creando…":"Crear grupo →"}</button>
+            <button style={{...S.btn,background:"transparent",border:"1px solid #334155",color:"#64748b",marginTop:8,fontSize:13}} onClick={()=>setMode("home")}>← Volver</button>
+          </div>
+        )}
+
+        {/* ADMIN */}
+        {mode==="admin"&&(
+          <div>
+            <input style={S.inp} type="password" placeholder="Contraseña admin..." value={pass} onChange={e=>setPass(e.target.value)} onKeyDown={e=>e.key==="Enter"&&enterAdmin()}/>
+            <button style={{...S.btn,background:"linear-gradient(135deg,#64748b,#475569)",color:"#fff"}} onClick={enterAdmin}>Entrar como Admin</button>
+            <button style={{...S.btn,background:"transparent",border:"1px solid #334155",color:"#64748b",marginTop:8,fontSize:13}} onClick={()=>setMode("home")}>← Volver</button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ── GROUP APP ─────────────────────────────────────────────────────────────
+function GroupApp({session,onExit,toast_,toast}) {
+  const {groupCode,groupName,userName}=session;
+  const [tab,setTab]=useState(0);
+  const base=`groups/${groupCode}`;
+
+  const [players,  savePlayers]  = useFB(`${base}/players`,{});
+  const [preds,    savePreds]    = useFB(`${base}/predictions`,{});
+  const [dreamXI,  saveDreamXI]  = useFB(`${base}/dreamXI`,{});
+  const [champion, saveChampion] = useFB(`${base}/champion`,{});
+  const [jokers,   saveJokers]   = useFB(`${base}/jokers`,{});
+  // Results are GLOBAL (same for all groups)
+  const [results,  ]             = useFB(`results`,{});
+  const [realChamp,]             = useFB(`realChampion`,null);
+
+  const leaderboard = Object.keys(players).map(name=>{
+    let matchPts=0;
+    MATCHES.forEach(m=>{
+      matchPts+=calcPoints(preds[name]?.[m.id],results[m.id],jokers[name]?.matchId===m.id).total;
+    });
+    const xi=dreamXI[name]||[];
+    const topCount=xi.filter(p=>TOP30.has(p.name)).length;
+    const dreamBonus=topCount*Object.keys(results).length;
+    const champBonus=realChamp&&champion[name]===realChamp?50:0;
+    return {name,matchPts,dreamBonus,champBonus,total:matchPts+dreamBonus+champBonus};
+  }).sort((a,b)=>b.total-a.total);
+
+  const chartData = (() => {
+    const finished=MATCHES.filter(m=>results[m.id]);
+    let running={};
+    Object.keys(players).forEach(n=>{running[n]=0;});
+    return finished.map((m,i)=>{
+      const point={name:`P${i+1}`,match:`${m.home} vs ${m.away}`};
+      Object.keys(players).forEach(n=>{
+        running[n]+=calcPoints(preds[n]?.[m.id],results[m.id],jokers[n]?.matchId===m.id).total;
+        point[n]=running[n];
+      });
+      return point;
+    });
+  })();
+
+  return (
+    <div style={{minHeight:"100vh",background:"#0f172a",color:"#f1f5f9",fontFamily:"Georgia,serif"}}>
+      <style>{`@keyframes spin{from{transform:rotate(0)}to{transform:rotate(360deg)}}`}</style>
+      {toast&&<div style={{position:"fixed",top:14,left:"50%",transform:"translateX(-50%)",zIndex:9999,padding:"9px 20px",borderRadius:8,color:"#fff",fontWeight:"bold",fontSize:14,boxShadow:"0 4px 20px rgba(0,0,0,0.4)",whiteSpace:"nowrap",background:toast.type==="ok"?"#16a34a":"#dc2626"}}>{toast.msg}</div>}
+
+      <header style={{background:"linear-gradient(135deg,#1e3a5f,#0f172a)",padding:"12px 16px",display:"flex",justifyContent:"space-between",alignItems:"center",borderBottom:"2px solid #f59e0b"}}>
+        <div>
+          <div style={{fontSize:15,fontWeight:"bold",color:"#f59e0b"}}>⚽ {groupName}</div>
+          <div style={{fontSize:10,color:"#64748b",marginTop:1}}>Código: <b style={{color:"#f59e0b",letterSpacing:2}}>{groupCode}</b></div>
+        </div>
+        <div style={{fontSize:11,color:"#94a3b8",cursor:"pointer",textAlign:"right"}} onClick={onExit}>● {userName}<br/><span style={{color:"#475569"}}>Cambiar grupo</span></div>
+      </header>
+
+      <nav style={{display:"flex",background:"#1e293b",borderBottom:"1px solid #334155"}}>
+        {TABS.map((icon,i)=>(
+          <button key={i} onClick={()=>setTab(i)} style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:"6px 1px",background:tab===i?"rgba(245,158,11,0.07)":"transparent",border:"none",color:tab===i?"#f59e0b":"#64748b",cursor:"pointer",borderBottom:tab===i?"2px solid #f59e0b":"2px solid transparent",gap:1}}>
+            <span style={{fontSize:15}}>{icon}</span><span style={{fontSize:8}}>{TLBL[i]}</span>
+          </button>
+        ))}
+      </nav>
+
+      <main style={{padding:"14px 13px 80px",maxWidth:620,margin:"0 auto"}}>
+        {tab===0&&<HomeTab leaderboard={leaderboard} user={userName} results={results} preds={preds} champion={champion} realChamp={realChamp} jokers={jokers} groupCode={groupCode} groupName={groupName} onGoRules={()=>setTab(5)}/>}
+        {tab===1&&<MatchesTab user={userName} preds={preds} results={results} jokers={jokers}
+          onSave={(id,h,a,sc)=>{savePreds({...preds,[userName]:{...(preds[userName]||{}),[id]:{home:h,away:a,scorer:sc}}});toast_("Predicción guardada ✅");}}
+          onDeletePred={(id)=>{const np={...preds,[userName]:{...(preds[userName]||{})}};delete np[userName][id];savePreds(np);toast_("Eliminada 🗑️");}}
+          onUseJoker={(id)=>{saveJokers({...jokers,[userName]:{matchId:id}});toast_("🃏 Comodín x2 activado!");}}
+          onRemoveJoker={()=>{const nj={...jokers};delete nj[userName];saveJokers(nj);toast_("Comodín retirado");}}/>}
+        {tab===2&&<ChampionTab user={userName} champion={champion} realChamp={realChamp} onSave={(t)=>{saveChampion({...champion,[userName]:t});toast_(`Apuesta: ${t} 🏆`);}}/>}
+        {tab===3&&<DreamXITab user={userName} dreamXI={dreamXI} onSave={xi=>{saveDreamXI({...dreamXI,[userName]:xi});toast_("Dream XI guardado 🌟");}} onReset={()=>{saveDreamXI({...dreamXI,[userName]:[]});toast_("Dream XI reseteado");}}/>}
+        {tab===4&&<ChartTab players={Object.keys(players)} chartData={chartData}/>}
+        {tab===5&&<RulesTab/>}
+      </main>
+    </div>
+  );
+}
+
+// ── ADMIN APP ─────────────────────────────────────────────────────────────
+function AdminApp({session,onExit,toast_,toast}) {
+  const [tab,setTab]=useState(0);
+  const [results,   saveResults]  = useFB(`results`,{});
+  const [realChamp, saveRealChamp]= useFB(`realChampion`,null);
+  const [groups,    ]             = useFB(`groups`,{});
+
+  const ATABS=["⚽ Resultados","🏆 Campeón","👥 Grupos"];
+
+  return (
+    <div style={{minHeight:"100vh",background:"#0f172a",color:"#f1f5f9",fontFamily:"Georgia,serif"}}>
+      <style>{`@keyframes spin{from{transform:rotate(0)}to{transform:rotate(360deg)}}`}</style>
+      {toast&&<div style={{position:"fixed",top:14,left:"50%",transform:"translateX(-50%)",zIndex:9999,padding:"9px 20px",borderRadius:8,color:"#fff",fontWeight:"bold",fontSize:14,boxShadow:"0 4px 20px rgba(0,0,0,0.4)",whiteSpace:"nowrap",background:toast.type==="ok"?"#16a34a":"#dc2626"}}>{toast.msg}</div>}
+      <header style={{background:"linear-gradient(135deg,#1e3a5f,#0f172a)",padding:"12px 16px",display:"flex",justifyContent:"space-between",alignItems:"center",borderBottom:"2px solid #f59e0b"}}>
+        <div style={{fontSize:15,fontWeight:"bold",color:"#f59e0b"}}>⚙️ Panel Admin</div>
+        <div style={{fontSize:11,color:"#94a3b8",cursor:"pointer"}} onClick={onExit}>Salir ✕</div>
+      </header>
+      <div style={{display:"flex",gap:0,background:"#1e293b",borderBottom:"1px solid #334155"}}>
+        {ATABS.map((t,i)=>(
+          <button key={i} onClick={()=>setTab(i)} style={{flex:1,padding:"10px 4px",background:tab===i?"rgba(245,158,11,0.1)":"transparent",border:"none",borderBottom:tab===i?"2px solid #f59e0b":"2px solid transparent",color:tab===i?"#f59e0b":"#64748b",cursor:"pointer",fontSize:11,fontWeight:tab===i?"bold":"normal"}}>{t}</button>
+        ))}
+      </div>
+      <main style={{padding:"14px 13px 80px",maxWidth:620,margin:"0 auto"}}>
+        {tab===0&&<AdminResultsTab results={results} onSave={(id,h,a,sc)=>{saveResults({...results,[id]:{home:h,away:a,scorer:sc||null}});toast_("Resultado guardado ✅");}} onDelete={(id)=>{const nr={...results};delete nr[id];saveResults(nr);toast_("Eliminado 🗑️");}}/>}
+        {tab===1&&<AdminChampTab realChamp={realChamp} onSet={(t)=>{saveRealChamp(t);toast_(`Campeón: ${t} 🏆`);}}/>}
+        {tab===2&&<AdminGroupsTab groups={groups}/>}
+      </main>
+    </div>
+  );
+}
+
+// ── HOME TAB ──────────────────────────────────────────────────────────────
+function HomeTab({leaderboard,user,results,preds,champion,realChamp,jokers,groupCode,groupName,onGoRules}) {
+  const rank=leaderboard.findIndex(l=>l.name===user)+1;
+  const my=leaderboard.find(l=>l.name===user)||{total:0,matchPts:0,dreamBonus:0,champBonus:0};
+  const upcoming=MATCHES.filter(m=>!results[m.id]).slice(0,3);
+  const myJoker=jokers[user];
+  const [copied,setCopied]=useState(false);
+  const copyCode=()=>{navigator.clipboard.writeText(groupCode);setCopied(true);setTimeout(()=>setCopied(false),2000);};
+  return (
+    <div>
+      {/* Share box */}
+      <div style={{background:"#1e293b",borderRadius:12,padding:"12px 14px",marginBottom:12,border:"1px solid #334155",display:"flex",alignItems:"center",gap:10}}>
+        <div style={{flex:1}}>
+          <div style={{fontSize:11,color:"#64748b"}}>Código de tu grupo — compártelo con la familia</div>
+          <div style={{fontSize:22,fontWeight:"bold",color:"#f59e0b",letterSpacing:4,marginTop:2}}>{groupCode}</div>
+        </div>
+        <button onClick={copyCode} style={{padding:"8px 12px",borderRadius:8,background:copied?"#16a34a":"rgba(245,158,11,0.15)",border:`1px solid ${copied?"#16a34a":"#f59e0b44"}`,color:copied?"#fff":"#fbbf24",fontSize:12,cursor:"pointer"}}>
+          {copied?"✓ Copiado":"📋 Copiar"}
+        </button>
+      </div>
+
+      <div style={{background:"linear-gradient(135deg,#1e3a5f,#0f3460)",borderRadius:16,padding:"20px 16px",textAlign:"center",marginBottom:12,border:"1px solid rgba(245,158,11,0.27)"}}>
+        <div style={{fontSize:36}}>🏆</div>
+        <div style={{fontSize:20,fontWeight:"bold",color:"#f1f5f9",marginTop:6}}>{user}</div>
+        <div style={{fontSize:22,color:"#f59e0b",fontWeight:"bold",marginTop:2}}>{rank>0?`#${rank}`:"–"} · {my.total} pts</div>
+        <div style={{fontSize:11,color:"#94a3b8",marginTop:2}}>{my.matchPts}p · {my.dreamBonus}XI · {my.champBonus}camp</div>
+        {myJoker
+          ?<div style={{marginTop:6,background:"rgba(168,85,247,0.2)",borderRadius:8,padding:"3px 10px",fontSize:11,color:"#d8b4fe",display:"inline-block"}}>🃏 Comodín usado en partido #{myJoker.matchId}</div>
+          :<div style={{marginTop:6,background:"rgba(245,158,11,0.15)",borderRadius:8,padding:"3px 10px",fontSize:11,color:"#fbbf24",display:"inline-block"}}>🃏 Comodín x2 disponible</div>}
+      </div>
+
+      {champion[user]&&<div style={{background:"#1e293b",borderRadius:10,padding:"10px 14px",marginBottom:10,border:"1px solid #f59e0b44",display:"flex",alignItems:"center",gap:8}}>
+        <span style={{fontSize:20}}>🏆</span>
+        <div style={{flex:1}}><div style={{fontSize:11,color:"#64748b"}}>Tu apuesta al campeón</div><div style={{fontWeight:"bold",color:"#f59e0b"}}>{TEAMS.find(t=>t.name===champion[user])?.flag||""} {champion[user]}</div></div>
+        {realChamp&&champion[user]===realChamp&&<span style={{background:"#16a34a",color:"#fff",borderRadius:8,padding:"3px 10px",fontSize:11,fontWeight:"bold"}}>+50 pts 🎉</span>}
+      </div>}
+
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8,marginBottom:12}}>
+        {[["⚽",`${Object.keys(results).length}/${MATCHES.length}`,"Jugados"],["🎯",Object.keys(preds[user]||{}).length,"Mis pred."],["👥",leaderboard.length,"Jugadores"]].map(([ic,v,l])=>(
+          <div key={l} style={{background:"#1e293b",borderRadius:10,padding:"10px 4px",textAlign:"center",border:"1px solid #334155"}}>
+            <div style={{fontSize:18}}>{ic}</div><div style={{fontSize:17,fontWeight:"bold",color:"#f59e0b"}}>{v}</div><div style={{fontSize:10,color:"#64748b"}}>{l}</div>
+          </div>
+        ))}
+      </div>
+
+      <div style={{fontWeight:"bold",fontSize:14,marginBottom:8}}>🥇 Clasificación</div>
+      {leaderboard.slice(0,5).map((l,i)=>(
+        <div key={l.name} style={{display:"flex",alignItems:"center",gap:10,padding:"9px 14px",borderRadius:10,marginBottom:5,background:i===0?"#fef3c7":i===1?"#f1f5f9":"#f8fafc"}}>
+          <span style={{fontSize:18}}>{"🥇🥈🥉"[i]||`${i+1}.`}</span>
+          <span style={{flex:1,fontWeight:"bold",color:"#1e293b",fontSize:13}}>{l.name}</span>
+          <span style={{fontWeight:"bold",color:"#1e293b"}}>{l.total} pts</span>
+        </div>
+      ))}
+
+      {upcoming.length>0&&<div style={{marginTop:12}}>
+        <div style={{fontWeight:"bold",fontSize:13,marginBottom:7}}>📅 Próximos partidos</div>
+        {upcoming.map(m=>(
+          <div key={m.id} style={{background:"#1e293b",borderRadius:10,padding:"9px 14px",marginBottom:5,border:"1px solid #334155",display:"flex",alignItems:"center",gap:8}}>
+            <span style={{flex:1,fontSize:12}}>{m.home}</span>
+            <span style={{fontSize:11,color:"#64748b"}}>{m.date}</span>
+            <span style={{flex:1,fontSize:12,textAlign:"right"}}>{m.away}</span>
+          </div>
+        ))}
+      </div>}
+
+      <div style={{background:"#1e293b",borderRadius:12,padding:12,marginTop:12,border:"1px solid #334155"}}>
+        <div style={{fontWeight:"bold",marginBottom:8,display:"flex",justifyContent:"space-between",fontSize:13}}>
+          <span>📋 Puntuación</span>
+          <span onClick={onGoRules} style={{fontSize:11,color:"#f59e0b",cursor:"pointer",textDecoration:"underline"}}>Ver reglas →</span>
+        </div>
+        {[["🎯","Exacto","10pts"],["🔥","Error 1 gol","6pts"],["👍","Error 2 goles","3pts"],["🤏","Error 3 goles","1pt"],["💥","Error 4+","0pts"],["✅","Bonus ganador","+2pts"],["⚽","Bonus goleador","+3pts"],["🃏","Comodín x2","×2 base"],["🌟","TOP30 Dream XI","+1/jornada"],["🏆","Apuesta campeón","+50pts"]].map(([ic,t,p])=>(
+          <div key={t} style={{display:"flex",alignItems:"center",gap:7,padding:"4px 0",fontSize:11,color:"#94a3b8",borderBottom:"1px solid #0f172a"}}>
+            <span style={{width:16}}>{ic}</span><span style={{flex:1}}>{t}</span><b style={{color:"#f59e0b"}}>{p}</b>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ── MATCHES TAB ───────────────────────────────────────────────────────────
+function MatchesTab({user,preds,results,jokers,onSave,onDeletePred,onUseJoker,onRemoveJoker}) {
+  const [inp,setInp]=useState({}); const [sc,setSc]=useState({}); const [gf,setGF]=useState("ALL");
+  const setV=(id,side,val)=>setInp(p=>({...p,[id]:{...(p[id]||{}),[side]:val}}));
+  const myJoker=jokers[user];
+  const filtered=gf==="ALL"?MATCHES:MATCHES.filter(m=>m.group===gf);
+  return (
+    <div>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
+        <div style={{fontWeight:"bold",fontSize:14}}>⚽ Partidos</div>
+        <div style={{fontSize:11,background:myJoker?"#2e1065":"rgba(245,158,11,0.15)",border:`1px solid ${myJoker?"#7c3aed":"#f59e0b44"}`,borderRadius:20,padding:"3px 9px",color:myJoker?"#d8b4fe":"#fbbf24"}}>
+          🃏 {myJoker?`Usado #${myJoker.matchId}`:"Disponible"}
+        </div>
+      </div>
+      <div style={{display:"flex",gap:4,marginBottom:10,flexWrap:"wrap"}}>
+        {["ALL","A","B","C","D","E","F","G","H","I","J","K","L"].map(g=>(
+          <button key={g} onClick={()=>setGF(g)} style={{padding:"3px 8px",borderRadius:20,cursor:"pointer",border:"none",background:gf===g?"#f59e0b":"#1e293b",color:gf===g?"#0f172a":"#94a3b8",fontSize:11,fontWeight:gf===g?"bold":"normal"}}>
+            {g==="ALL"?"Todos":`Gr.${g}`}
+          </button>
+        ))}
+      </div>
+      {filtered.map(m=>{
+        const pred=preds[user]?.[m.id],real=results[m.id];
+        const hasJoker=myJoker?.matchId===m.id;
+        const r=calcPoints(pred,real,hasJoker),b=mkBadge(r),done=!!real;
+        const hv=inp[m.id]?.home??pred?.home??"",av=inp[m.id]?.away??pred?.away??"";
+        const sv=sc[m.id]??pred?.scorer??"";
+        return (
+          <div key={m.id} style={{background:"#1e293b",borderRadius:12,padding:11,marginBottom:7,border:`1px solid ${hasJoker?"#7c3aed":"#334155"}`}}>
+            <div style={{display:"flex",alignItems:"center",gap:5,marginBottom:7}}>
+              <span style={{background:"#f59e0b",color:"#0f172a",fontSize:10,fontWeight:"bold",padding:"2px 6px",borderRadius:5}}>Gr.{m.group}</span>
+              <span style={{fontSize:10,color:"#64748b"}}>{m.date}</span>
+              {hasJoker&&<span style={{background:"#7c3aed",color:"#fff",fontSize:10,padding:"2px 5px",borderRadius:5}}>🃏 x2</span>}
+              {b&&<span style={{marginLeft:"auto",fontSize:10,padding:"2px 7px",borderRadius:6,fontWeight:"bold",color:"#fff",background:b.color}}>{b.label}</span>}
+            </div>
+            {/* Scores row */}
+            <div style={{display:"flex",alignItems:"center",gap:5}}>
+              <span style={{flex:1,fontSize:12,fontWeight:500}}>{m.home}</span>
+              {done
+                ? <div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:3}}>
+                    <div style={{background:"#0f172a",borderRadius:8,padding:"4px 14px",fontSize:17,fontWeight:"bold",color:"#22c55e"}}>{real.home}–{real.away}</div>
+                    {pred
+                      ? <div style={{display:"flex",alignItems:"center",gap:4}}>
+                          <span style={{fontSize:9,color:"#64748b"}}>Tu pred:</span>
+                          <span style={{fontSize:13,fontWeight:"bold",color:r.error===0?"#22c55e":r.pts>0?"#f59e0b":"#ef4444",background:"#0f172a",borderRadius:6,padding:"2px 8px"}}>{pred.home}–{pred.away}</span>
+                        </div>
+                      : <div style={{fontSize:9,color:"#475569",fontStyle:"italic"}}>Sin predicción</div>
+                    }
+                  </div>
+                : <div style={{display:"flex",alignItems:"center",gap:3}}>
+                    <input style={S.scoreBox} type="number" min="0" max="20" value={hv} onChange={e=>setV(m.id,"home",e.target.value)}/>
+                    <span style={{color:"#f59e0b",fontWeight:"bold"}}>:</span>
+                    <input style={S.scoreBox} type="number" min="0" max="20" value={av} onChange={e=>setV(m.id,"away",e.target.value)}/>
+                  </div>
+              }
+              <span style={{flex:1,fontSize:12,fontWeight:500,textAlign:"right"}}>{m.away}</span>
+            </div>
+            {!done&&<div style={{marginTop:7}}>
+              <select style={{...S.inp,marginBottom:0,padding:"5px 8px",fontSize:11}} value={sv} onChange={e=>setSc(p=>({...p,[m.id]:e.target.value}))}>
+                <option value="">— Primer goleador (+3pts) —</option>
+                {PLAYERS.filter(p=>p.country===m.home||p.country===m.away).sort((a,b)=>a.name.localeCompare(b.name)).map(p=>(
+                  <option key={p.name} value={p.name}>{p.flag} {p.name} ({p.pos})</option>
+                ))}
+              </select>
+            </div>}
+            {done&&pred&&<div style={{marginTop:6,background:"#0f172a",borderRadius:8,padding:"7px 10px",fontSize:11}}>
+              <div style={{display:"flex",gap:8,flexWrap:"wrap",alignItems:"center"}}>
+                <span style={{color:"#64748b"}}>Error:</span>
+                <span style={{color:"#f1f5f9",fontWeight:"bold"}}>{r.error} gol{r.error!==1?"es":""}</span>
+                <span style={{color:"#64748b",marginLeft:4}}>Base:</span>
+                <span style={{color:"#f59e0b",fontWeight:"bold"}}>{r.pts}{hasJoker?" (x2)":""}</span>
+                <span style={{color:"#64748b",marginLeft:4}}>Bonus:</span>
+                <span style={{color:"#7c3aed",fontWeight:"bold"}}>+{r.bonus+r.scorer}</span>
+                <span style={{marginLeft:"auto",fontWeight:"bold",color:r.total>=10?"#22c55e":r.total>=6?"#f59e0b":r.total>0?"#94a3b8":"#ef4444",fontSize:13}}>={r.total}pts</span>
+              </div>
+              {real.scorer&&<div style={{marginTop:5,paddingTop:5,borderTop:"1px solid #1e293b",display:"flex",alignItems:"center",gap:6,flexWrap:"wrap"}}>
+                <span style={{fontSize:10,color:"#64748b"}}>⚽ Goleador real:</span>
+                <span style={{fontWeight:"bold",color:"#22c55e",fontSize:11}}>{real.scorer}</span>
+                {pred.scorer
+                  ? <><span style={{fontSize:10,color:"#64748b",marginLeft:4}}>Tu pred:</span>
+                    <span style={{fontWeight:"bold",fontSize:11,color:pred.scorer===real.scorer?"#22c55e":"#ef4444"}}>{pred.scorer}{pred.scorer===real.scorer?" ✓ +3pts":""}</span></>
+                  : <span style={{fontSize:10,color:"#475569",fontStyle:"italic"}}>Sin pred. goleador</span>
+                }
+              </div>}
+            </div>}
+            {done&&!pred&&<div style={{marginTop:5,background:"#0f172a",borderRadius:7,padding:"6px 10px",fontSize:11,color:"#475569",fontStyle:"italic",textAlign:"center"}}>No hiciste predicción en este partido</div>}
+            {!done&&<div style={{marginTop:7,display:"flex",gap:5}}>
+              <button style={{flex:1,...btnS("#0f3460","#1d4ed8","#93c5fd")}} onClick={()=>onSave(m.id,hv,av,sv)}>Guardar ✓</button>
+              {!myJoker&&<button style={{padding:"6px 9px",...btnS("#2e1065","#7c3aed","#d8b4fe")}} onClick={()=>onUseJoker(m.id)}>🃏</button>}
+              {hasJoker&&<button style={{padding:"6px 9px",...btnS("#1a0a0a","#7f1d1d","#fca5a5")}} onClick={onRemoveJoker}>✕🃏</button>}
+              {pred&&<button style={{padding:"6px 9px",...btnS("#1a0a0a","#7f1d1d","#fca5a5")}} onClick={()=>onDeletePred(m.id)}>🗑️</button>}
+            </div>}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+// ── CHAMPION TAB ──────────────────────────────────────────────────────────
+function ChampionTab({user,champion,realChamp,onSave}) {
+  const [search,setSearch]=useState("");
+  const myPick=champion[user];
+  const filtered=TEAMS.filter(t=>search===""||t.name.toLowerCase().includes(search.toLowerCase()));
+  return (
+    <div>
+      <div style={{background:"linear-gradient(135deg,#7c2d12,#1e293b)",borderRadius:14,padding:"16px",textAlign:"center",marginBottom:12,border:"1px solid #f59e0b44"}}>
+        <div style={{fontSize:32}}>🏆</div>
+        <div style={{fontSize:16,fontWeight:"bold",color:"#f59e0b",marginTop:4}}>¿Quién ganará el Mundial?</div>
+        <div style={{fontSize:11,color:"#94a3b8",marginTop:3}}>Si aciertas → <b style={{color:"#f59e0b"}}>+50 puntos</b></div>
+      </div>
+      {myPick&&<div style={{background:"#1e293b",borderRadius:10,padding:"11px 14px",marginBottom:10,border:"1px solid #f59e0b",display:"flex",alignItems:"center",gap:9}}>
+        <span style={{fontSize:26}}>{TEAMS.find(t=>t.name===myPick)?.flag||"🏳️"}</span>
+        <div style={{flex:1}}><div style={{fontSize:11,color:"#64748b"}}>Tu apuesta</div><div style={{fontWeight:"bold",fontSize:15,color:"#f59e0b"}}>{myPick}</div></div>
+        {realChamp&&myPick===realChamp?<span style={{background:"#16a34a",color:"#fff",borderRadius:8,padding:"3px 9px",fontSize:11,fontWeight:"bold"}}>+50 🎉</span>
+         :<button style={{...btnS("#1a0a0a","#7f1d1d","#fca5a5"),padding:"5px 9px",fontSize:10}} onClick={()=>onSave("")}>Cambiar</button>}
+      </div>}
+      {Object.entries(champion).filter(([n])=>n!==user).length>0&&<div style={{background:"#1e293b",borderRadius:10,padding:"9px 12px",marginBottom:10,border:"1px solid #334155"}}>
+        <div style={{fontSize:11,color:"#64748b",marginBottom:5}}>Apuestas de los demás 👀</div>
+        {Object.entries(champion).filter(([n])=>n!==user).map(([n,t])=>(
+          <div key={n} style={{display:"flex",alignItems:"center",gap:7,padding:"3px 0",fontSize:12}}>
+            <span style={{fontSize:16}}>{TEAMS.find(x=>x.name===t)?.flag||"🏳️"}</span>
+            <span style={{flex:1,color:"#94a3b8"}}>{n}</span>
+            <span style={{fontWeight:"bold"}}>{t}</span>
+          </div>
+        ))}
+      </div>}
+      <input style={{...S.inp,marginBottom:8,padding:"8px 12px",fontSize:12}} placeholder="🔍 Buscar selección..." value={search} onChange={e=>setSearch(e.target.value)}/>
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:6}}>
+        {filtered.map(t=>{
+          const sel=myPick===t.name;
+          return <button key={t.name} onClick={()=>onSave(t.name)} style={{display:"flex",alignItems:"center",gap:9,padding:"9px 11px",background:sel?"#0f3460":"#1e293b",border:`1px solid ${sel?"#f59e0b":"#334155"}`,borderRadius:10,cursor:"pointer",textAlign:"left"}}>
+            <span style={{fontSize:22}}>{t.flag}</span>
+            <span style={{fontSize:12,color:sel?"#fbbf24":"#f1f5f9",fontWeight:sel?"bold":"normal",flex:1}}>{t.name}</span>
+            {sel&&<span style={{color:"#22c55e"}}>✓</span>}
+          </button>;
+        })}
+      </div>
+    </div>
+  );
+}
+
+// ── CHART TAB ─────────────────────────────────────────────────────────────
+function ChartTab({players,chartData}) {
+  const [hover,setHover] = useState(null);
+
+  if(chartData.length===0) return (
+    <div style={{textAlign:"center",padding:40}}>
+      <div style={{fontSize:36,marginBottom:10}}>📊</div>
+      <div style={{color:"#64748b"}}>Aparecerá cuando se jueguen los primeros partidos</div>
+    </div>
+  );
+
+  // Calculate max value for scaling
+  const maxVal = Math.max(...chartData.flatMap(d=>players.map(p=>d[p]||0)), 1);
+  const W = 320, H = 200, PAD = {top:10,right:10,bottom:24,left:30};
+  const cW = W - PAD.left - PAD.right;
+  const cH = H - PAD.top - PAD.bottom;
+  const xStep = chartData.length > 1 ? cW / (chartData.length - 1) : cW;
+
+  const xPos = (i) => PAD.left + (chartData.length > 1 ? i * xStep : cW/2);
+  const yPos = (v) => PAD.top + cH - (v / maxVal) * cH;
+
+  return (
+    <div>
+      <div style={{fontWeight:"bold",fontSize:14,marginBottom:4}}>📊 Evolución del ranking</div>
+      <div style={{fontSize:11,color:"#64748b",marginBottom:12}}>Puntos acumulados partido a partido</div>
+
+      <div style={{background:"#1e293b",borderRadius:12,padding:"14px 10px",border:"1px solid #334155",overflowX:"auto"}}>
+        <svg width="100%" viewBox={`0 0 ${W} ${H}`} style={{display:"block"}}>
+          {/* Grid lines */}
+          {[0,25,50,75,100].filter(v=>v<=maxVal+5).map(v=>{
+            const y = yPos(v * maxVal / 100);
+            return <g key={v}>
+              <line x1={PAD.left} y1={y} x2={W-PAD.right} y2={y} stroke="#334155" strokeDasharray="3,3" strokeWidth={0.5}/>
+              <text x={PAD.left-4} y={y+3} fontSize={8} fill="#64748b" textAnchor="end">{Math.round(v*maxVal/100)}</text>
+            </g>;
+          })}
+          {/* X axis labels */}
+          {chartData.map((d,i)=>(
+            <text key={i} x={xPos(i)} y={H-6} fontSize={8} fill="#64748b" textAnchor="middle">{d.name}</text>
+          ))}
+          {/* Lines per player */}
+          {players.map((p,pi)=>{
+            const col = COLORS[pi % COLORS.length];
+            const points = chartData.map((d,i)=>({x:xPos(i),y:yPos(d[p]||0),v:d[p]||0,match:d.match}));
+            const path = points.map((pt,i)=>`${i===0?"M":"L"}${pt.x},${pt.y}`).join(" ");
+            return (
+              <g key={p}>
+                <path d={path} fill="none" stroke={col} strokeWidth={2} strokeLinejoin="round"/>
+                {points.map((pt,i)=>(
+                  <circle key={i} cx={pt.x} cy={pt.y} r={3} fill={col} stroke="#1e293b" strokeWidth={1}
+                    onMouseEnter={()=>setHover({x:pt.x,y:pt.y,name:p,val:pt.v,match:pt.match,col})}
+                    onMouseLeave={()=>setHover(null)}/>
+                ))}
+              </g>
+            );
+          })}
+          {/* Hover tooltip */}
+          {hover&&<g>
+            <rect x={Math.min(hover.x+6,W-90)} y={Math.max(hover.y-30,0)} width={84} height={28} rx={4} fill="#0f172a" stroke={hover.col} strokeWidth={1}/>
+            <text x={Math.min(hover.x+9,W-87)} y={Math.max(hover.y-17,13)} fontSize={9} fill={hover.col} fontWeight="bold">{hover.name}</text>
+            <text x={Math.min(hover.x+9,W-87)} y={Math.max(hover.y-7,23)} fontSize={9} fill="#94a3b8">{hover.val} pts</text>
+          </g>}
+        </svg>
+      </div>
+
+      {/* Legend */}
+      <div style={{display:"flex",flexWrap:"wrap",gap:8,marginTop:12}}>
+        {players.map((p,i)=>{
+          const last = chartData[chartData.length-1];
+          return (
+            <div key={p} style={{display:"flex",alignItems:"center",gap:6,background:"#1e293b",borderRadius:8,padding:"6px 10px",border:`1px solid ${COLORS[i%COLORS.length]}44`}}>
+              <div style={{width:10,height:10,borderRadius:"50%",background:COLORS[i%COLORS.length],flexShrink:0}}/>
+              <span style={{fontSize:12}}>{p}</span>
+              <span style={{fontWeight:"bold",color:COLORS[i%COLORS.length],fontSize:13}}>{last[p]||0}pts</span>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+// ── DREAM XI TAB ──────────────────────────────────────────────────────────
+function DreamXITab({user,dreamXI,onSave,onReset}) {
+  const [sel,setSel]=useState(dreamXI[user]||[]);
+  const [search,setSearch]=useState(""); const [posF,setPosF]=useState("ALL"); const [ctryF,setCtryF]=useState("ALL");
+  useEffect(()=>setSel(dreamXI[user]||[]),[user,JSON.stringify(dreamXI[user])]);
+  const topCount=sel.filter(p=>TOP30.has(p.name)).length;
+  const toggle=(p)=>{
+    if(sel.find(s=>s.name===p.name)){setSel(sel.filter(s=>s.name!==p.name));return;}
+    if(sel.length>=11||(TOP30.has(p.name)&&topCount>=3))return;
+    setSel([...sel,p]);
+  };
+  const countries=["ALL",...new Set(PLAYERS.map(p=>p.country))].sort((a,b)=>a==="ALL"?-1:a.localeCompare(b));
+  const filtered=PLAYERS.filter(p=>{
+    const ms=search===""||p.name.toLowerCase().includes(search.toLowerCase())||p.country.toLowerCase().includes(search.toLowerCase());
+    return ms&&(posF==="ALL"||p.pos===posF)&&(ctryF==="ALL"||p.country===ctryF);
+  });
+  const posLayout={POR:[0],DEF:[1,2,3,4],MED:[5,6,7],DEL:[8,9,10]};
+  const slotLbl=["POR","LT","DFC","DFC","RT","MCD","MC","MC","EXT","DC","EXT"];
+  return (
+    <div>
+      <div style={{background:"linear-gradient(135deg,#14532d,#166534)",borderRadius:12,padding:"11px 14px",marginBottom:10,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+        <div><div style={{fontWeight:"bold",fontSize:14,color:"#86efac"}}>⭐ Dream XI — {sel.length}/11</div><div style={{fontSize:11,color:"#4ade80",marginTop:1}}>TOP30: {topCount}/3</div></div>
+        <div style={{display:"flex",gap:5}}>
+          {sel.length===11&&<button style={{...S.btn,width:"auto",padding:"7px 11px",fontSize:11}} onClick={()=>onSave(sel)}>Guardar 🌟</button>}
+          {sel.length>0&&<button style={{padding:"7px 9px",borderRadius:10,...btnS("#1a0a0a","#7f1d1d","#fca5a5")}} onClick={()=>{setSel([]);onReset();}}>🗑️</button>}
+        </div>
+      </div>
+      {sel.length>0&&<div style={{background:"#14532d",borderRadius:12,padding:10,marginBottom:10,border:"1px solid #166534"}}>
+        {Object.entries(posLayout).map(([pos,idxs])=>(
+          <div key={pos} style={{display:"flex",justifyContent:"center",gap:5,marginBottom:6}}>
+            {idxs.map(i=>{
+              const p=sel[i];
+              return p?<div key={i} onClick={()=>toggle(p)} style={{background:"rgba(255,255,255,0.13)",borderRadius:7,padding:"5px 6px",textAlign:"center",minWidth:52,cursor:"pointer",border:TOP30.has(p.name)?"1px solid #fbbf24":"1px solid transparent"}}>
+                <div style={{fontSize:15}}>{p.flag}</div>
+                <div style={{fontSize:9,color:"#fff",fontWeight:"bold",maxWidth:50,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{p.name.split(" ").slice(-1)[0]}</div>
+                <div style={{fontSize:8,color:"#86efac"}}>{slotLbl[i]}</div>
+                {TOP30.has(p.name)&&<div style={{fontSize:8,color:"#fbbf24"}}>★</div>}
+              </div>:<div key={i} style={{background:"rgba(255,255,255,0.04)",borderRadius:7,padding:"5px 6px",textAlign:"center",minWidth:52,border:"1px dashed #166534"}}>
+                <div style={{fontSize:15,color:"rgba(74,222,128,0.2)"}}>?</div>
+                <div style={{fontSize:8,color:"#4ade80"}}>{slotLbl[i]}</div>
+              </div>;
+            })}
+          </div>
+        ))}
+      </div>}
+      {topCount>=3&&<div style={{background:"#7c2d12",border:"1px solid #ea580c",borderRadius:8,padding:"6px 11px",fontSize:11,color:"#fed7aa",marginBottom:7}}>⚠️ Límite TOP30 alcanzado.</div>}
+      {sel.length>=11&&<div style={{background:"#1e3a5f",border:"1px solid #3b82f6",borderRadius:8,padding:"6px 11px",fontSize:11,color:"#93c5fd",marginBottom:7}}>✅ XI completo. Pulsa Guardar.</div>}
+      <input style={{...S.inp,marginBottom:7,padding:"7px 11px",fontSize:11}} placeholder="🔍 Buscar jugador o país..." value={search} onChange={e=>setSearch(e.target.value)}/>
+      <div style={{display:"flex",gap:4,marginBottom:7,flexWrap:"wrap"}}>
+        {["ALL","POR","DEF","MED","DEL"].map(p=><button key={p} onClick={()=>setPosF(p)} style={{padding:"4px 8px",borderRadius:20,cursor:"pointer",border:`1px solid ${posF===p?"#f59e0b":"#334155"}`,background:posF===p?"rgba(245,158,11,0.13)":"#1e293b",color:posF===p?"#f59e0b":"#94a3b8",fontSize:10}}>{p==="ALL"?"Todos":POS_LABEL[p]}</button>)}
+      </div>
+      <select style={{...S.inp,marginBottom:9,padding:"7px 11px",fontSize:11}} value={ctryF} onChange={e=>setCtryF(e.target.value)}>
+        {countries.map(c=><option key={c} value={c}>{c==="ALL"?"🌍 Todos":c}</option>)}
+      </select>
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:5}}>
+        {filtered.map(p=>{
+          const isSel=!!sel.find(s=>s.name===p.name),isStar=TOP30.has(p.name),blocked=!isSel&&(sel.length>=11||(isStar&&topCount>=3));
+          return <button key={p.name} onClick={()=>!blocked&&toggle(p)} style={{display:"flex",alignItems:"center",gap:6,padding:"7px 8px",textAlign:"left",background:isSel?"#0f3460":blocked?"#111827":"#1e293b",border:`1px solid ${isSel?"#f59e0b":isStar?"#a855f7":"#334155"}`,borderRadius:9,cursor:blocked?"not-allowed":"pointer",opacity:blocked?0.4:1}}>
+            <span style={{fontSize:17}}>{p.flag}</span>
+            <div style={{flex:1,minWidth:0}}>
+              <div style={{fontSize:10,color:isSel?"#fbbf24":isStar?"#d8b4fe":"#f1f5f9",fontWeight:isStar?"bold":"normal",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{p.name}{isStar?" ★":""}</div>
+              <div style={{fontSize:9,color:"#64748b"}}>{p.country}</div>
+            </div>
+            <span style={{fontSize:9,fontWeight:"bold",padding:"1px 4px",borderRadius:3,background:POS_COLOR[p.pos]+"33",color:POS_COLOR[p.pos]}}>{p.pos}</span>
+            {isSel&&<span style={{color:"#22c55e",fontSize:12}}>✓</span>}
+          </button>;
+        })}
+      </div>
+      {Object.entries(dreamXI).filter(([n])=>n!==user).length>0&&<div style={{marginTop:12}}>
+        <div style={{fontWeight:"bold",fontSize:12,marginBottom:7}}>Los XI de los demás 👀</div>
+        {Object.entries(dreamXI).filter(([n])=>n!==user).map(([name,xi])=>(
+          <div key={name} style={{background:"#1e293b",borderRadius:8,padding:"8px 11px",marginBottom:5,border:"1px solid #334155"}}>
+            <div style={{fontWeight:"bold",fontSize:11,marginBottom:4}}>{name}</div>
+            <div style={{display:"flex",flexWrap:"wrap",gap:3}}>
+              {(xi||[]).map(p=><span key={p.name||p} style={{fontSize:9,background:"#0f172a",borderRadius:10,padding:"2px 6px",color:TOP30.has(p.name||p)?"#fbbf24":"#94a3b8",border:`1px solid ${TOP30.has(p.name||p)?"rgba(245,158,11,0.27)":"#334155"}`}}>{p.flag||""} {p.name||p}</span>)}
+            </div>
+          </div>
+        ))}
+      </div>}
+    </div>
+  );
+}
+
+// ── RULES TAB ─────────────────────────────────────────────────────────────
+function RulesTab() {
+  const rP={fontSize:12,color:"#94a3b8",lineHeight:1.6,margin:0};
+  const Sec=({icon,title,color,children})=>(
+    <div style={{background:"#1e293b",borderRadius:12,padding:13,marginBottom:10,border:`1px solid ${color}33`}}>
+      <div style={{display:"flex",alignItems:"center",gap:7,marginBottom:8,paddingBottom:7,borderBottom:`1px solid ${color}33`}}>
+        <span style={{fontSize:20}}>{icon}</span><h3 style={{margin:0,fontSize:14,color}}>{title}</h3>
+      </div>
+      {children}
+    </div>
+  );
+  return (
+    <div>
+      <div style={{background:"linear-gradient(135deg,#1e3a5f,#0f3460)",borderRadius:14,padding:"16px",textAlign:"center",marginBottom:12,border:"1px solid rgba(245,158,11,0.27)"}}>
+        <div style={{fontSize:32}}>📖</div>
+        <h2 style={{fontSize:18,color:"#f59e0b",margin:"6px 0 4px"}}>Reglas del Juego</h2>
+        <p style={{fontSize:11,color:"#94a3b8",margin:0}}>Mundial 2026 · Quiniela por grupos</p>
+      </div>
+      <Sec icon="👥" title="Grupos" color="#3b82f6">
+        <p style={rP}>Cada familia crea su propio grupo con un código único. Comparte el código con tu familia para que se unan. Los grupos son independientes — cada uno tiene su propio ranking.</p>
+      </Sec>
+      <Sec icon="⚽" title="Predicciones" color="#3b82f6">
+        <p style={rP}>Predice el marcador antes del pitido. Puntuación por cercanía:</p>
+        <div style={{background:"#0f172a",borderRadius:9,overflow:"hidden",marginTop:7}}>
+          {[["🎯","Exacto","10pts","#16a34a"],["🔥","Error 1 gol","6pts","#d97706"],["👍","Error 2 goles","3pts","#64748b"],["🤏","Error 3 goles","1pt","#475569"],["💥","Error 4+","0pts","#334155"],["✅","Bonus ganador/empate","+2pts","#7c3aed"],["⚽","Bonus goleador","+3pts","#0ea5e9"]].map(([ic,t,p,c],i)=>(
+            <div key={i} style={{display:"flex",alignItems:"center",gap:9,padding:"8px 11px",borderBottom:"1px solid #1e293b"}}>
+              <span style={{fontSize:16,width:20}}>{ic}</span>
+              <span style={{flex:1,fontSize:11,color:"#f1f5f9"}}>{t}</span>
+              <span style={{background:c,borderRadius:5,padding:"2px 7px",fontSize:11,fontWeight:"bold",color:"#fff"}}>{p}</span>
+            </div>
+          ))}
+        </div>
+      </Sec>
+      <Sec icon="🃏" title="Comodín x2" color="#a855f7">
+        <p style={rP}>1 comodín por fase. Dobla los puntos base de ese partido. Solo antes del pitido.</p>
+      </Sec>
+      <Sec icon="🏆" title="Apuesta al Campeón" color="#f59e0b">
+        <p style={rP}>Elige quién ganará el Mundial. Si aciertas → <b style={{color:"#f59e0b"}}>+50 puntos</b>.</p>
+      </Sec>
+      <Sec icon="🌟" title="Dream XI" color="#a855f7">
+        <p style={rP}>11 jugadores, máximo 3 TOP30 (★). Por cada TOP30 → <b style={{color:"#f59e0b"}}>+1pt/jornada</b>.</p>
+      </Sec>
+    </div>
+  );
+}
+
+// ── ADMIN RESULTS TAB ─────────────────────────────────────────────────────
+function AdminResultsTab({results,onSave,onDelete}) {
+  const [inp,setInp]=useState({}); const [sc,setSc]=useState({});
+  const setV=(id,side,val)=>setInp(p=>({...p,[id]:{...(p[id]||{}),[side]:val}}));
+  const [gf,setGF]=useState("ALL");
+  const filtered=gf==="ALL"?MATCHES:MATCHES.filter(m=>m.group===gf);
+  return (
+    <div>
+      <p style={{fontSize:11,color:"#64748b",marginBottom:10}}>Los resultados se aplican a <b style={{color:"#f1f5f9"}}>todos los grupos</b> automáticamente.</p>
+      <div style={{display:"flex",gap:4,marginBottom:10,flexWrap:"wrap"}}>
+        {["ALL","A","B","C","D","E","F","G","H","I","J","K","L"].map(g=><button key={g} onClick={()=>setGF(g)} style={{padding:"3px 8px",borderRadius:20,cursor:"pointer",border:"none",background:gf===g?"#f59e0b":"#1e293b",color:gf===g?"#0f172a":"#94a3b8",fontSize:11}}>{g==="ALL"?"Todos":`Gr.${g}`}</button>)}
+      </div>
+      {filtered.map(m=>{
+        const hv=inp[m.id]?.home??results[m.id]?.home??"",av=inp[m.id]?.away??results[m.id]?.away??"",sv=sc[m.id]??results[m.id]?.scorer??"";
+        return (
+          <div key={m.id} style={{background:"#1e293b",borderRadius:10,padding:11,marginBottom:6,border:"1px solid #334155"}}>
+            <div style={{display:"flex",gap:5,alignItems:"center",marginBottom:7}}>
+              <span style={{background:"#f59e0b",color:"#0f172a",fontSize:10,fontWeight:"bold",padding:"2px 5px",borderRadius:4}}>Gr.{m.group}</span>
+              <span style={{fontSize:10,color:"#64748b"}}>{m.date}</span>
+              {results[m.id]&&<span style={{fontSize:10,color:"#22c55e",marginLeft:"auto"}}>✓ {results[m.id].home}–{results[m.id].away}{results[m.id].scorer?" ⚽"+results[m.id].scorer:""}</span>}
+            </div>
+            <div style={{display:"flex",alignItems:"center",gap:5,marginBottom:6}}>
+              <span style={{flex:1,fontSize:11}}>{m.home}</span>
+              <input style={S.scoreBox} type="number" min="0" max="20" value={hv} onChange={e=>setV(m.id,"home",e.target.value)}/>
+              <span style={{color:"#f59e0b",fontWeight:"bold"}}>:</span>
+              <input style={S.scoreBox} type="number" min="0" max="20" value={av} onChange={e=>setV(m.id,"away",e.target.value)}/>
+              <span style={{flex:1,fontSize:11,textAlign:"right"}}>{m.away}</span>
+            </div>
+            <select style={{...S.inp,marginBottom:6,padding:"4px 7px",fontSize:10}} value={sv} onChange={e=>setSc(p=>({...p,[m.id]:e.target.value}))}>
+              <option value="">— Primer goleador —</option>
+              {PLAYERS.filter(p=>p.country===m.home||p.country===m.away).sort((a,b)=>a.name.localeCompare(b.name)).map(p=><option key={p.name} value={p.name}>{p.flag} {p.name} ({p.pos})</option>)}
+            </select>
+            <div style={{display:"flex",gap:5}}>
+              <button style={{flex:1,padding:"6px",...btnS("rgba(29,78,216,0.13)","#3b82f6","#93c5fd")}} onClick={()=>onSave(m.id,hv,av,sv)}>Guardar ✓</button>
+              <a href="https://www.marca.com/futbol/mundial/2026.html" target="_blank" style={{padding:"6px 9px",...btnS("rgba(16,185,129,0.1)","#10b981","#6ee7b7"),textDecoration:"none",fontSize:10,display:"flex",alignItems:"center"}}>🔗 Marca</a>
+              {results[m.id]&&<button style={{padding:"6px 9px",...btnS("#1a0a0a","#7f1d1d","#fca5a5")}} onClick={()=>onDelete(m.id)}>🗑️</button>}
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+// ── ADMIN CHAMPION TAB ────────────────────────────────────────────────────
+function AdminChampTab({realChamp,onSet}) {
+  const [confirm,setConfirm]=useState(null);
+  return (
+    <div>
+      {confirm&&<div style={{position:"fixed",top:0,left:0,right:0,bottom:0,background:"rgba(0,0,0,0.75)",zIndex:999,display:"flex",alignItems:"center",justifyContent:"center",padding:20}}>
+        <div style={{background:"#1e293b",borderRadius:14,padding:22,maxWidth:300,width:"100%",textAlign:"center",border:"1px solid #ef4444"}}>
+          <div style={{fontSize:26,marginBottom:8}}>⚠️</div>
+          <div style={{fontSize:12,color:"#f1f5f9",marginBottom:18}}>¿Confirmar a <b>{confirm}</b> como campeón del Mundial 2026?</div>
+          <div style={{display:"flex",gap:8}}><button onClick={()=>setConfirm(null)} style={{flex:1,padding:"8px",borderRadius:8,background:"#334155",border:"none",color:"#f1f5f9",cursor:"pointer",fontSize:12}}>Cancelar</button><button onClick={()=>{onSet(confirm);setConfirm(null);}} style={{flex:1,padding:"8px",borderRadius:8,background:"#16a34a",border:"none",color:"#fff",fontWeight:"bold",cursor:"pointer",fontSize:12}}>Confirmar 🏆</button></div>
+        </div>
+      </div>}
+      <p style={{fontSize:11,color:"#64748b",marginBottom:12}}>Confirma el campeón para repartir los <b style={{color:"#f59e0b"}}>+50 pts</b> a quien acertó.</p>
+      {realChamp&&<div style={{background:"#1e293b",borderRadius:10,padding:"11px 14px",marginBottom:12,border:"1px solid #16a34a",display:"flex",alignItems:"center",gap:9}}>
+        <span style={{fontSize:22}}>{TEAMS.find(t=>t.name===realChamp)?.flag||"🏆"}</span>
+        <div style={{flex:1}}><div style={{fontSize:10,color:"#64748b"}}>Campeón confirmado</div><div style={{fontWeight:"bold",color:"#22c55e"}}>{realChamp}</div></div>
+        <button style={{padding:"5px 8px",...btnS("#1a0a0a","#7f1d1d","#fca5a5"),fontSize:10}} onClick={()=>onSet(null)}>Cambiar</button>
+      </div>}
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:5}}>
+        {TEAMS.map(t=><button key={t.name} onClick={()=>setConfirm(t.name)} style={{display:"flex",alignItems:"center",gap:7,padding:"8px 9px",background:realChamp===t.name?"#0f3460":"#1e293b",border:`1px solid ${realChamp===t.name?"#22c55e":"#334155"}`,borderRadius:9,cursor:"pointer",textAlign:"left"}}>
+          <span style={{fontSize:18}}>{t.flag}</span>
+          <span style={{fontSize:11,color:realChamp===t.name?"#22c55e":"#f1f5f9",flex:1}}>{t.name}</span>
+          {realChamp===t.name&&<span style={{color:"#22c55e"}}>✓</span>}
+        </button>)}
+      </div>
+    </div>
+  );
+}
+
+// ── ADMIN GROUPS TAB ──────────────────────────────────────────────────────
+function AdminGroupsTab({groups}) {
+  const [expanded,setExpanded] = useState(null);
+  const [confirm,setConfirm]   = useState(null);
+
+  const doAction = async (action, groupCode, userName) => {
+    const {db,ref,set,get} = window._fb;
+    if(action==="resetPreds"){
+      await set(ref(db,`groups/${groupCode}/predictions/${userName}`),{});
+    } else if(action==="resetDream"){
+      await set(ref(db,`groups/${groupCode}/dreamXI/${userName}`),[]);
+    } else if(action==="removeUser"){
+      const grpSnap = await get(ref(db,`groups/${groupCode}`));
+      if(!grpSnap.exists()) return;
+      const grp = grpSnap.val();
+      // delete player
+      const players = {...(grp.players||{})}; delete players[userName];
+      await set(ref(db,`groups/${groupCode}/players`),players);
+      // delete predictions
+      const preds = {...(grp.predictions||{})}; delete preds[userName];
+      await set(ref(db,`groups/${groupCode}/predictions`),preds);
+      // delete dreamXI
+      const dream = {...(grp.dreamXI||{})}; delete dream[userName];
+      await set(ref(db,`groups/${groupCode}/dreamXI`),dream);
+      // delete champion
+      const champ = {...(grp.champion||{})}; delete champ[userName];
+      await set(ref(db,`groups/${groupCode}/champion`),champ);
+    } else if(action==="deleteGroup"){
+      await set(ref(db,`groups/${groupCode}`),null);
+    }
+  };
+
+  if(!groups||Object.keys(groups).length===0) return <p style={{textAlign:"center",color:"#64748b",marginTop:40}}>No hay grupos creados aún</p>;
+
+  const Confirm=({msg,onYes,onNo})=>(
+    <div style={{position:"fixed",top:0,left:0,right:0,bottom:0,background:"rgba(0,0,0,0.75)",zIndex:999,display:"flex",alignItems:"center",justifyContent:"center",padding:20}}>
+      <div style={{background:"#1e293b",borderRadius:14,padding:22,maxWidth:300,width:"100%",textAlign:"center",border:"1px solid #ef4444"}}>
+        <div style={{fontSize:26,marginBottom:8}}>⚠️</div>
+        <div style={{fontSize:12,color:"#f1f5f9",marginBottom:18}}>{msg}</div>
+        <div style={{display:"flex",gap:8}}>
+          <button onClick={onNo} style={{flex:1,padding:"8px",borderRadius:8,background:"#334155",border:"none",color:"#f1f5f9",cursor:"pointer",fontSize:12}}>Cancelar</button>
+          <button onClick={onYes} style={{flex:1,padding:"8px",borderRadius:8,background:"#dc2626",border:"none",color:"#fff",fontWeight:"bold",cursor:"pointer",fontSize:12}}>Confirmar</button>
+        </div>
+      </div>
+    </div>
+  );
+
+  return (
+    <div>
+      {confirm&&<Confirm msg={confirm.msg} onYes={()=>{confirm.action();setConfirm(null);}} onNo={()=>setConfirm(null)}/>}
+      <p style={{fontSize:11,color:"#64748b",marginBottom:12}}>Gestiona los grupos y sus participantes.</p>
+      {Object.entries(groups).map(([code,grp])=>{
+        const members=Object.keys(grp.players||{});
+        const isExp=expanded===code;
+        return (
+          <div key={code} style={{background:"#1e293b",borderRadius:12,marginBottom:8,border:"1px solid #334155",overflow:"hidden"}}>
+            {/* Group header */}
+            <div style={{display:"flex",alignItems:"center",gap:10,padding:"12px 14px",cursor:"pointer"}} onClick={()=>setExpanded(isExp?null:code)}>
+              <div style={{flex:1}}>
+                <div style={{fontWeight:"bold",fontSize:14}}>{grp.name}</div>
+                <div style={{fontSize:10,color:"#64748b",marginTop:1}}>
+                  Código: <b style={{color:"#f59e0b",letterSpacing:2}}>{code}</b> · {members.length} miembro{members.length!==1?"s":""}
+                </div>
+              </div>
+              <span style={{color:"#475569",fontSize:12}}>{isExp?"▲":"▼"}</span>
+            </div>
+
+            {/* Expanded: members */}
+            {isExp&&(
+              <div style={{borderTop:"1px solid #334155",padding:"10px 14px",background:"#0f1e33"}}>
+                {members.length===0&&<p style={{fontSize:11,color:"#64748b"}}>Sin miembros</p>}
+                {members.map(name=>(
+                  <div key={name} style={{background:"#1e293b",borderRadius:10,padding:"10px 12px",marginBottom:6}}>
+                    <div style={{display:"flex",alignItems:"center",marginBottom:7}}>
+                      <span style={{flex:1,fontWeight:"bold",fontSize:13}}>{name}</span>
+                      <span style={{fontSize:10,color:"#64748b"}}>
+                        {Object.keys(grp.predictions?.[name]||{}).length} preds · {(grp.dreamXI?.[name]||[]).length} XI
+                      </span>
+                    </div>
+                    <div style={{display:"flex",gap:5,flexWrap:"wrap"}}>
+                      <button style={{padding:"5px 9px",borderRadius:7,background:"rgba(245,158,11,0.1)",border:"1px solid #f59e0b44",color:"#fbbf24",fontSize:11,cursor:"pointer"}}
+                        onClick={()=>setConfirm({msg:`¿Borrar predicciones de ${name} en ${grp.name}?`,action:()=>doAction("resetPreds",code,name)})}>
+                        🗑️ Predicciones
+                      </button>
+                      <button style={{padding:"5px 9px",borderRadius:7,background:"rgba(168,85,247,0.1)",border:"1px solid #a855f744",color:"#d8b4fe",fontSize:11,cursor:"pointer"}}
+                        onClick={()=>setConfirm({msg:`¿Borrar Dream XI de ${name} en ${grp.name}?`,action:()=>doAction("resetDream",code,name)})}>
+                        🗑️ Dream XI
+                      </button>
+                      <button style={{padding:"5px 9px",borderRadius:7,background:"#1a0a0a",border:"1px solid #7f1d1d",color:"#fca5a5",fontSize:11,cursor:"pointer"}}
+                        onClick={()=>setConfirm({msg:`¿Eliminar a ${name} del grupo ${grp.name}?`,action:()=>doAction("removeUser",code,name)})}>
+                        ❌ Eliminar
+                      </button>
+                    </div>
+                  </div>
+                ))}
+                {/* Delete whole group */}
+                <button style={{width:"100%",marginTop:6,padding:"8px",...btnS("#1a0a0a","#7f1d1d","#fca5a5"),fontSize:11}}
+                  onClick={()=>setConfirm({msg:`¿Eliminar COMPLETAMENTE el grupo "${grp.name}"? Se borrarán todos los datos.`,action:()=>doAction("deleteGroup",code,null)})}>
+                  🗑️ Eliminar grupo completo
+                </button>
+              </div>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+const S={
+  inp:{width:"100%",padding:"11px 14px",borderRadius:10,border:"1px solid #475569",background:"#0f172a",color:"#f1f5f9",fontSize:15,marginBottom:10,fontFamily:"Georgia,serif",outline:"none"},
+  btn:{width:"100%",padding:"11px",borderRadius:10,background:"linear-gradient(135deg,#f59e0b,#d97706)",border:"none",color:"#0f172a",fontSize:15,fontWeight:"bold",cursor:"pointer",fontFamily:"Georgia,serif"},
+  scoreBox:{width:42,height:34,borderRadius:7,border:"1px solid #475569",background:"#0f172a",color:"#f1f5f9",textAlign:"center",fontSize:16,fontWeight:"bold",fontFamily:"Georgia,serif"},
+};
+
+ReactDOM.createRoot(document.getElementById("root")).render(<App/>);
+</script>
+</body>
+</html>
